@@ -16,7 +16,7 @@ venv/
 ENV/
 VENV/
 
-# Datos y gráficos temporales (si no querés subirlos)
+# Datos y gráficos temporales (si no querés subirlos)fhf
 graficos_temp/
 datospython1/
 
