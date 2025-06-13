@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+
+# Jupyter
+.ipynb_checkpoints
+
+# Entorno virtual
+env/
+venv/
+ENV/
+VENV/
+
+# Datos y gráficos temporales (si no querés subirlos)
+graficos_temp/
+datospython1/
+
+# Excel y PDF generados
+*.xlsx
+*.pdf
+
+# Config VSCode
+.vscode/
