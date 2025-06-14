@@ -137,6 +137,9 @@ class DataLoaderProfessional:
                 'adj close', 'close', 'precio_cierre', 'Adj Close', 
                 'Close', 'Precio_Cierre', 'price', 'Price', 'CLOSE'
             ]
+            # Añadir el ticker mismo como un nombre de columna válido
+            if nombre not in columnas_validas: # Evitar duplicados si 'nombre' ya es una columna común
+                columnas_validas.insert(0, nombre) # Insertar al principio para darle prioridad
             
             for col_objetivo in columnas_validas:
                 for col in df.columns:
@@ -1214,6 +1217,12 @@ class GeneradorInformesProfesional:
     def generar_excel_profesional(self):
         """Genera Excel profesional con múltiples hojas formateadas."""
         try:
+            import openpyxl # Verificar si está disponible
+        except ImportError:
+            logger.warning("⚠️ openpyxl no disponible, saltando generación Excel. Instalar con: pip install openpyxl")
+            return
+
+        try:
             excel_path = os.path.join(self.output_dir, 'Analisis_Cuantitativo_Profesional.xlsx')
             
             with pd.ExcelWriter(excel_path, engine='openpyxl') as writer:
@@ -1780,10 +1789,14 @@ if __name__ == "__main__":
         import scipy
         import sklearn
         from fpdf import FPDF
+        import openpyxl # Para la generación de Excel
+        import docx     # Para la generación de DOCX (python-docx)
         logger.info("✅ Todas las dependencias verificadas")
     except ImportError as e:
-        logger.error(f"❌ Dependencia faltante: {e}")
-        logger.info("💡 Instalar con: pip install pandas numpy matplotlib seaborn scipy scikit-learn fpdf2")
+        # Extraer solo el nombre del módulo que no se pudo importar
+        nombre_modulo_faltante = e.name if hasattr(e, 'name') and e.name else str(e).split("'")[-2]
+        logger.error(f"❌ Dependencia faltante: {nombre_modulo_faltante}")
+        logger.info("💡 Instalar con: pip install pandas numpy matplotlib seaborn scipy scikit-learn fpdf2 openpyxl python-docx")
         sys.exit(1)
     
     # Ejecutar análisis principal
