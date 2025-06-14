@@ -15,6 +15,7 @@ env/
 venv/
 ENV/
 VENV/
+.venv/
 
 # Datos y gráficos temporales (si no querés subirlos)fhf
 graficos_temp/
