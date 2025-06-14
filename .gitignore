@@ -20,6 +20,10 @@ VENV/
 # Datos y gráficos temporales (si no querés subirlos)fhf
 graficos_temp/
 datospython1/
+logs/
+charts_profesionales/
+resultados_profesionales/
+
 
 # Excel y PDF generados
 *.xlsx
