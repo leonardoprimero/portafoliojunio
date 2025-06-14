@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from openpyxl.drawing.image import Image
 from openpyxl import load_workbook
-from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
+from openpyxl.styles import Font
 from matplotlib.backends.backend_pdf import PdfPages
 import shutil
 from datetime import datetime, timedelta
@@ -633,7 +633,7 @@ def main():
     print(f"Desarrollado por: {AUTOR_NOMBRE}")
     print(f"Portfolio: {AUTOR_PORTFOLIO}")
     print("="*60)
-    print(f"Configuración:")
+    print("Configuración:")
     print(f"   • Escala de gráficos: {'Logarítmica' if USAR_ESCALA_LOGARITMICA else 'Linear'}")
     print(f"   • Carpeta de datos: {CARPETA_DATOS}")
     print(f"   • Archivo PDF: {ARCHIVO_PDF}")
@@ -658,7 +658,7 @@ def main():
         print("\n" + "="*60)
         print("ANÁLISIS FINAL COMPLETADO - TODOS LOS PROBLEMAS SOLUCIONADOS")
         print("="*60)
-        print(f"Archivos generados:")
+        print("Archivos generados:")
         print(f"   • {ARCHIVO_PDF} (A4 perfecto, SIN superposición de pie de página)")
         print(f"   • {ARCHIVO_EXCEL} (imágenes REALMENTE separadas de datos)")
         print(f"Activos procesados: {len(resultados)}")
