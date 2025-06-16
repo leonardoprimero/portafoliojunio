@@ -129,9 +129,8 @@ class PDF(FPDF):
 
     def add_cover_page(self, title, author, date):
         self.add_page()
-        self.image('/home/ubuntu/upload/image.png', x=self.w/4, y=self.h/4, w=self.w/2)
         self.set_font('Arial', 'B', 24)
-        self.ln(self.h/2)
+        self.ln(self.h / 3)
         self.cell(0, 10, title, 0, 1, 'C')
         self.set_font('Arial', '', 16)
         self.cell(0, 10, author, 0, 1, 'C')
