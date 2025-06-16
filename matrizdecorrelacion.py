@@ -7,6 +7,7 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 import numpy as np
 from fpdf import FPDF
 from datetime import datetime
+from textwrap import wrap
 
 # ------------------------ CONFIGURACIÓN ------------------------
 CARPETA_DATOS = './datospython1'
@@ -43,6 +44,11 @@ if not dataframes:
 
 # ------------------------ MATRIZ DE CORRELACIÓN ------------------------
 df_precios = pd.concat(dataframes.values(), axis=1).dropna()
+
+BENCHMARK = 'SPY'
+if BENCHMARK in df_precios.columns:
+    df_precios = df_precios.drop(columns=BENCHMARK)
+
 retornos = np.log(df_precios / df_precios.shift(1)).dropna()
 matriz_correlacion = retornos.corr()
 
@@ -144,48 +150,56 @@ else:
     print("Ejemplo de columnas reconocidas: Ticker / Symbol y Sector / GICS Sector")
 
 # ------------------------ PDF PROFESIONAL ------------------------
-from fpdf import FPDF
-from datetime import datetime
-
 pdf_path = os.path.join(CARPETA_SALIDA, "informe_correlacion_financiera.pdf")
 pdf = FPDF()
 pdf.set_auto_page_break(auto=True, margin=15)
 pdf.add_page()
 
-# Portada
-pdf.set_font("Arial", 'B', 16)
+pdf.set_font("helvetica", 'B', 16)
 pdf.cell(0, 10, "Informe de Correlación Financiera", ln=True, align="C")
-
-pdf.set_font("Arial", '', 12)
+pdf.set_font("helvetica", '', 12)
 pdf.cell(0, 10, "Autor: Leonardo Caliva", ln=True, align="C")
 pdf.cell(0, 10, f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align="C")
 pdf.cell(0, 10, "Sitio web: https://leocaliva.com", ln=True, align="C")
+pdf.ln(10)
+
+pdf.set_font("helvetica", 'B', 13)
+pdf.cell(0, 10, "Resumen Ejecutivo", ln=True)
+pdf.set_font("helvetica", '', 11)
+resumen = (
+    "Este informe presenta las correlaciones históricas entre activos financieros seleccionados, "
+    "permitiendo identificar relaciones de dependencia y oportunidades de diversificación dentro de una cartera. "
+    f"El benchmark utilizado fue {BENCHMARK}, el cual fue excluido del análisis de correlación entre activos para evitar distorsiones."
+)
+pdf.multi_cell(0, 8, resumen)
 pdf.ln(5)
 
-# Imagen heatmap
 if os.path.exists(img_path):
-    pdf.set_font("Arial", 'B', 14)
+    pdf.set_font("helvetica", 'B', 14)
     pdf.cell(0, 10, "Matriz de Correlación entre Activos", ln=True)
     pdf.image(img_path, x=15, w=180)
     pdf.ln(10)
 
-# Insights
 pdf.add_page()
-pdf.set_font("Arial", 'B', 14)
-pdf.cell(0, 10, "Insights Automáticos", ln=True)
-pdf.set_font("Arial", '', 11)
-for line in insights:
-    pdf.multi_cell(0, 8, line)
+pdf.set_font("helvetica", 'B', 14)
+pdf.cell(0, 10, "Insights Cuantitativos sobre Correlaciones", ln=True)
+pdf.set_font("helvetica", '', 11)
+pdf.cell(0, 8, "="*60, ln=True)
+pdf.ln(2)
 
-# Resumen por sector si existe
+for line in insights:
+    pdf.multi_cell(0, 8, txt=line)
+
 if tabla_sector:
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 14)
+    pdf.set_font("helvetica", 'B', 14)
     pdf.cell(0, 10, "Resumen de Correlación por Sector", ln=True)
-    pdf.set_font("Arial", '', 11)
+    pdf.set_font("helvetica", '', 11)
     for linea in tabla_sector.splitlines():
         pdf.multi_cell(0, 8, linea)
 
-pdf.output(pdf_path)
-
-print(f"\n📄 PDF profesional generado en: {pdf_path}")
+try:
+    pdf.output(pdf_path)
+    print(f"\n📄 PDF profesional generado en: {pdf_path}")
+except Exception as e:
+    print(f"❌ Error al generar el PDF: {e}")

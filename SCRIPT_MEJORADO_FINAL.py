@@ -24,7 +24,7 @@ MEJORAS IMPLEMENTADAS:
 - ✅ Excel mejorado con dashboard
 - ✅ Todas las visualizaciones requeridas
 
-Autor: Analista Cuantitativo Senior
+Autor: Leguillo a.k.a. @leonardoprimero
 Fecha: 2025-06-14
 Versión: 2.0 Professional Edition
 """

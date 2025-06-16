@@ -28,7 +28,7 @@ MEJORAS IMPLEMENTADAS:
 - ✅ Todas las visualizaciones requeridas
 - 🔧 BUG CORREGIDO: MultiIndex handling para Yahoo Finance
 
-Autor: Analista Cuantitativo Senior
+Autor: Leguillo a.k.a. @leonardoprimero
 Fecha: 2025-06-14
 Versión: 2.1 Professional Edition (Bug Fix)
 """
