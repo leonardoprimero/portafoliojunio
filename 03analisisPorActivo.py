@@ -22,6 +22,7 @@ from openpyxl.styles import Font, Border, Side, Alignment, PatternFill
 from matplotlib.backends.backend_pdf import PdfPages
 import shutil
 from datetime import datetime, timedelta
+from textwrap import wrap
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -117,21 +118,30 @@ def crear_portada_pdf(pdf, tickers):
     # Línea decorativa
     ax.plot([0.1, 0.9], [0.82, 0.82], color='#1a237e', linewidth=2, transform=ax.transAxes)
     
-    # Subtítulo con activos
-    ax.text(0.5, 0.78, f'Activos analizados: {", ".join(tickers)}', 
-            fontsize=14, ha='center', va='center', style='italic',
-            color='#424242', transform=ax.transAxes)
+    # Armar texto de tickers con ajuste automático
+    tickers_str = ", ".join(tickers)
+
+    # Elegir fuente según largo
+    if len(tickers_str) <= 80:
+        font_size = 14
+    elif len(tickers_str) <= 150:
+        font_size = 12
+    elif len(tickers_str) <= 250:
+        font_size = 10
+    else:
+        font_size = 9
+
+    # Envolver para que no se pase del ancho
+    wrapped_lines = wrap(tickers_str, width=80)  # Podés ajustar el width si querés más o menos líneas
+    y_pos = 0.78
+
+    for line in wrapped_lines:
+        ax.text(0.5, y_pos, line,
+                fontsize=font_size, ha='center', va='center', style='italic',
+                color='#424242', transform=ax.transAxes)
+        y_pos -= 0.035  # Espaciado vertical entre líneas
     
-    # Ecuación matemática relevante
-    ax.text(0.5, 0.72, 'Fórmula de retorno anualizado:', 
-            fontsize=12, ha='center', va='center', weight='bold',
-            color='#d32f2f', transform=ax.transAxes)
-    
-    # Ecuación (sin LaTeX para evitar problemas)
-    ax.text(0.5, 0.68, 'R_anual = (1 + R_diario_promedio)^252 - 1', 
-            fontsize=14, ha='center', va='center', style='italic',
-            color='#d32f2f', transform=ax.transAxes, 
-            bbox=dict(boxstyle="round,pad=0.3", facecolor='#ffebee', alpha=0.8))
+
     
     # Descripción del contenido
     descripcion = """CONTENIDO DEL INFORME:
@@ -413,6 +423,7 @@ def procesar_activos():
     
     # Crear PDF
     pdf = PdfPages(ARCHIVO_PDF)
+    
     
     # Crear portada
     print("Creando portada del PDF...")

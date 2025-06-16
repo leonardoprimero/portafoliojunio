@@ -6,16 +6,31 @@ import os
 from datetime import datetime
 
 # === CONFIGURACIÓN ===
-sectores = {
+'''sectores = {
     'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL'],
     'Salud': ['JNJ', 'PFE', 'MRK', 'UNH'],
     'Finanzas': ['JPM', 'BAC', 'WFC', 'C'],
     'Energía': ['XOM', 'CVX', 'COP', 'SLB'],
     'Benchmark':['SPY']
-}
+}'''
 
-fecha_inicio = '2020-01-01'
-fecha_fin = '2025-05-31'
+sectores = {
+    'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AVGO', 'ORCL', 'ADBE'],
+    'Salud': ['JNJ', 'PFE', 'MRK', 'UNH', 'ABBV', 'LLY', 'TMO', 'BMY'],
+    'Finanzas': ['JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'AXP', 'BK'],
+    'Energía': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'PSX', 'MPC', 'HAL'],
+    'Consumo discrecional': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'LOW', 'SBUX'],
+    'Consumo básico': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'MDLZ'],
+    'Industriales': ['HON', 'GE', 'UPS', 'CAT', 'RTX', 'LMT'],
+    'Utilities': ['NEE', 'DUK', 'SO', 'AEP', 'EXC'],
+    'Materiales': ['LIN', 'APD', 'ECL', 'NEM', 'SHW'],
+    'Comunicaciones': ['VZ', 'T', 'CHTR', 'TMUS', 'DIS'],
+    'Real Estate': ['PLD', 'AMT', 'CCI', 'SPG', 'O'],
+    'Benchmark': ['SPY']
+    }
+
+fecha_inicio = '2015-01-01'
+fecha_fin = '2025-06-16'
 
 # Ruta donde se guardarán los archivos
 carpeta_destino = os.path.join(os.path.dirname(__file__), 'datospython1')
