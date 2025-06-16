@@ -248,7 +248,7 @@ pdf.set_font("helvetica", 'B', 16)
 pdf.cell(0, 10, "Informe de Correlación Financiera", ln=True, align="C")
 pdf.set_font("helvetica", '', 12)
 pdf.cell(0, 10, "Autor: Leonardo Caliva (a.k.a leonardoprimero)", ln=True, align="C")
-pdf.cell(0, 10, f"Quant & Data Science Professional", ln=True, align="C")
+pdf.cell(0, 10, f"Quant & Data Science", ln=True, align="C")
 pdf.cell(0, 10, f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align="C")
 pdf.cell(0, 10, "Sitio web: https://leocaliva.com | GitHub: https://github.com/leonardoprimero", ln=True, align="C")
 
