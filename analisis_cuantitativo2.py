@@ -146,7 +146,7 @@ def calcular_volatilidad_movil(df_precios, ventana=60):
     volatilidad_movil = retornos.rolling(window=ventana).std() * np.sqrt(252)
     return volatilidad_movil
 
-def simulacion_monte_carlo(retornos_diarios, num_simulaciones=10000):
+def simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000):
     """
     Realiza simulación Monte Carlo para optimización de portafolios.
     Basado en el código de montecarlo.py proporcionado.
@@ -287,7 +287,7 @@ class PDFMejorado(FPDF):
             self.cell(0, 6, f'Pagina {self.page_no()}', 0, 0, 'C')
             
             # Lado derecho: disclaimer
-            self.cell(0, 6, 'Solo fines educativos', 0, 1, 'R')
+            self.cell(0, 6, '@leonardoprimero        ', 0, 1, 'R')
 
     def chapter_title(self, title):
         title = limpiar_texto(title)
@@ -391,8 +391,9 @@ class PDFMejorado(FPDF):
         self.cell(0, 6, texto_pie, 0, 1, 'C')
         
         self.ln(2)
-        disclaimer = limpiar_texto("Este documento es solo para fines educativos y de investigacion")
-        self.cell(0, 6, disclaimer, 0, 1, 'C')
+        self.set_font('Arial', 'I', 9)
+        texto = "Este informe fue generado mediante modelos cuantitativos avanzados y refleja análisis reproducibles con fundamentos estadísticos y financieros."
+        self.multi_cell(0, 5, limpiar_texto(texto), 0, 'C')
         
         # Marco decorativo inferior
         self.ln(8)
@@ -613,7 +614,7 @@ if __name__ == "__main__":
 
     # 8. Simulación Monte Carlo
     print("\n🎲 Ejecutando simulación Monte Carlo...")
-    carteras_mc, datos_activos_mc, optimo_mc = simulacion_monte_carlo(retornos_diarios, num_simulaciones=10000)
+    carteras_mc, datos_activos_mc, optimo_mc = simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000)
 
     # 9. Optimización de Markowitz - TRES PORTAFOLIOS
     print("\n📊 Calculando portafolios óptimos...")
@@ -794,7 +795,7 @@ if __name__ == "__main__":
 
     # --- GUARDAR RESULTADOS EN EXCEL ---
     print("\n💾 Guardando resultados en Excel...")
-    excel_results_path = os.path.join(CARPETA_SALIDA, "analisis_cuantitativo_mejorado.xlsx")
+    excel_results_path = os.path.join(CARPETA_SALIDA, "analisisCuantitativoDeActivos.xlsx")
     with pd.ExcelWriter(excel_results_path, engine="openpyxl") as writer:
         # Hoja 1: Estadísticas descriptivas
         estadisticas_descriptivas.to_excel(writer, sheet_name="Estadisticas_Descriptivas")
@@ -974,7 +975,7 @@ Ademas de una optimizacion por simulacion Monte Carlo con {len(carteras_mc)} ite
     pdf.chapter_body(conclusiones_text)
 
     # Guardar PDF
-    pdf_output_path = os.path.join(CARPETA_SALIDA, f"Informe_Mejorado_Carteras_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
+    pdf_output_path = os.path.join(CARPETA_SALIDA, f"InformeDeActivos{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
     pdf.output(pdf_output_path)
     
     print(f"✅ Informe PDF mejorado generado: {pdf_output_path}")
