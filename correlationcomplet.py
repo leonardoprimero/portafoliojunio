@@ -7,6 +7,8 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 import numpy as np
 from fpdf import FPDF
 from datetime import datetime
+import scipy.cluster.hierarchy as sch
+   
 
 CARPETA_DATOS = './datospython1'
 CARPETA_SALIDA = './graficos_temp'
@@ -53,6 +55,13 @@ for fila in dataframe_to_rows(matriz_correlacion.round(4), index=True, header=Tr
 wb.save(excel_path)
 
 # ==== Gráfico 1: Matriz de Correlación (Heatmap) ====
+
+# Aplicar clustering jerárquico para reordenar
+linkage = sch.linkage(matriz_correlacion, method='ward')
+orden = sch.dendrogram(linkage, no_plot=True)['leaves']
+matriz_correlacion = matriz_correlacion.iloc[orden, orden]
+
+# Updated Gráfico 1: Matriz de Correlación (Heatmap) con Clustering Jerárquico
 img_path = os.path.join(CARPETA_SALIDA, 'heatmap_correlacion.png')
 plt.figure(figsize=(12, 10))
 sns.set(style="whitegrid", font_scale=1.1)
@@ -65,7 +74,6 @@ plt.tight_layout()
 plt.savefig(img_path)
 plt.close()
 print(f"✅ Imagen generada: {img_path}")
-
 # ==== Gráfico 2: Dendrograma ====
 from scipy.cluster.hierarchy import linkage, dendrogram
 dendro_path = os.path.join(CARPETA_SALIDA, 'dendrograma_clustering.png')
@@ -252,7 +260,7 @@ if len(insights) > 0:
     ax.axis('off')
     y_start = 1
     for i, line in enumerate(insights):
-        ax.text(0, y_start - i*0.09, u"\u2022 " + line, fontsize=11, ha='left', va='top', wrap=True)
+        ax.text(0, y_start - i*0.09, "- " + line, fontsize=11, ha='left', va='top', wrap=True)
     plt.title("Insights automáticos", fontsize=14, weight='bold', pad=18)
     insights_img_path = os.path.join(CARPETA_SALIDA, 'insights_img.png')
     plt.savefig(insights_img_path, bbox_inches='tight')
@@ -382,7 +390,7 @@ pdf.set_text_color(0, 0, 0)
 pdf.ln(2)
 if insights:
     for line in insights:
-        pdf.multi_cell(0, 7, u"\u2022 " + line)
+        pdf.multi_cell(0, 7, "- " + line)
     pdf.ln(3)
 else:
     pdf.multi_cell(0, 7, "No se detectaron correlaciones destacadas.")
