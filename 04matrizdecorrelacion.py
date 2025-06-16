@@ -8,6 +8,8 @@ import numpy as np
 from fpdf import FPDF
 from datetime import datetime
 from textwrap import wrap
+import scipy.cluster.hierarchy as sch
+
 
 # ------------------------ CONFIGURACIÓN ------------------------
 CARPETA_DATOS = './datospython1'
@@ -52,6 +54,88 @@ if BENCHMARK in df_precios.columns:
 retornos = np.log(df_precios / df_precios.shift(1)).dropna()
 matriz_correlacion = retornos.corr()
 
+# ------------------------ COMPARACIÓN ROLLING (6M VS ANTERIORES) ------------------------
+print("\n🌀 Comparando correlaciones: últimos 6 meses vs 6 meses previos...")
+
+# Definimos dos ventanas de 180 días
+ventana_actual = retornos.last('180D')
+fecha_inicio_pasada = ventana_actual.index.min() - pd.Timedelta(days=180)
+fecha_fin_pasada = ventana_actual.index.min() - pd.Timedelta(days=1)
+ventana_pasada = retornos.loc[fecha_inicio_pasada:fecha_fin_pasada]
+
+# Calculamos correlaciones
+corr_actual = ventana_actual.corr()
+corr_pasada = ventana_pasada.corr()
+
+# Detectamos rupturas importantes
+rupturas = []
+for i in range(len(corr_actual.columns)):
+    for j in range(i + 1, len(corr_actual.columns)):
+        a1 = corr_actual.columns[i]
+        a2 = corr_actual.columns[j]
+
+        if a1 in corr_pasada.columns and a2 in corr_pasada.columns:
+            actual = corr_actual.loc[a1, a2]
+            pasado = corr_pasada.loc[a1, a2]
+            delta = actual - pasado
+
+            if abs(delta) >= 0.4:
+                tipo = "aumentó" if delta > 0 else "disminuyó"
+                rupturas.append(f"La correlación entre {a1} y {a2} {tipo} de {pasado:.2f} a {actual:.2f} (Delta = {delta:+.2f})")
+
+if rupturas:
+    print("\n⚠️ Cambios significativos en correlación:")
+    for r in rupturas:
+        print(" -", r)
+else:
+    print("✅ No se detectaron rupturas relevantes (Δ < 0.4)")
+
+# Guardar como txt
+ruptura_path = os.path.join(CARPETA_SALIDA, 'rupturas_correlacion.txt')
+with open(ruptura_path, 'w', encoding='utf-8') as f:
+    f.write("Rupturas de Correlación (últimos 6 meses vs anteriores)\n")
+    f.write("="*60 + "\n\n")
+    if rupturas:
+        for r in rupturas:
+            f.write(r + "\n")
+    else:
+        f.write("No se detectaron cambios relevantes de correlación.\n")
+
+# ------------------------ GRÁFICO DE BARRAS DE RUPTURAS ------------------------
+print("\n📊 Generando gráfico de rupturas de correlación...")
+import matplotlib.pyplot as plt
+
+pares = []
+deltas = []
+
+for i in range(len(corr_actual.columns)):
+    for j in range(i + 1, len(corr_actual.columns)):
+        a1 = corr_actual.columns[i]
+        a2 = corr_actual.columns[j]
+        if a1 in corr_pasada.columns and a2 in corr_pasada.columns:
+            delta = corr_actual.loc[a1, a2] - corr_pasada.loc[a1, a2]
+            pares.append(f"{a1}-{a2}")
+            deltas.append(delta)
+
+# Ordenar por magnitud
+ordenados = sorted(zip(pares, deltas), key=lambda x: abs(x[1]), reverse=True)[:20]
+
+if ordenados:
+    labels, valores = zip(*ordenados)
+
+    plt.figure(figsize=(10, 6))
+    bars = plt.barh(labels, valores, color=['#4caf50' if v > 0 else '#f44336' for v in valores])
+    plt.axvline(0, color='black', lw=1)
+    plt.title("Top 20 Cambios en Correlación (últimos 6m vs anteriores)")
+    plt.xlabel("Δ Correlación")
+    plt.tight_layout()
+    plt.savefig(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png"))
+    plt.close()
+    print(f"✅ Gráfico de rupturas guardado en: {os.path.join(CARPETA_SALIDA, 'grafico_rupturas.png')}")
+else:
+    print("ℹ️ No hay suficientes rupturas para generar el gráfico.")
+
+
 # ------------------------ EXCEL ------------------------
 excel_path = os.path.join(CARPETA_SALIDA, 'matriz_correlacion.xlsx')
 wb = Workbook()
@@ -61,11 +145,16 @@ for fila in dataframe_to_rows(matriz_correlacion.round(4), index=True, header=Tr
     ws.append(fila)
 wb.save(excel_path)
 
+# Aplicar clustering jerárquico para reordenar
+linkage = sch.linkage(matriz_correlacion, method='ward')
+orden = sch.dendrogram(linkage, no_plot=True)['leaves']
+matriz_correlacion = matriz_correlacion.iloc[orden, orden]
+
 # ------------------------ HEATMAP ------------------------
 plt.figure(figsize=(12, 10))
 sns.set(style="whitegrid", font_scale=1.1)
 sns.heatmap(matriz_correlacion, annot=True, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1,
-            square=True, linewidths=0.5, cbar_kws={'label': 'Correlación'})
+            square=True, linewidths=0.5, annot_kws={"size": 9}, cbar_kws={'label': 'Correlación'})
 plt.title("Matriz de Correlación entre Activos", fontsize=16, weight='bold')
 plt.xticks(rotation=45, ha='right')
 plt.yticks(rotation=0)
@@ -158,9 +247,11 @@ pdf.add_page()
 pdf.set_font("helvetica", 'B', 16)
 pdf.cell(0, 10, "Informe de Correlación Financiera", ln=True, align="C")
 pdf.set_font("helvetica", '', 12)
-pdf.cell(0, 10, "Autor: Leonardo Caliva", ln=True, align="C")
+pdf.cell(0, 10, "Autor: Leonardo Caliva (a.k.a leonardoprimero)", ln=True, align="C")
+pdf.cell(0, 10, f"Quant & Data Science Professional", ln=True, align="C")
 pdf.cell(0, 10, f"Fecha de generación: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align="C")
-pdf.cell(0, 10, "Sitio web: https://leocaliva.com", ln=True, align="C")
+pdf.cell(0, 10, "Sitio web: https://leocaliva.com | GitHub: https://github.com/leonardoprimero", ln=True, align="C")
+
 pdf.ln(10)
 
 pdf.set_font("helvetica", 'B', 13)
@@ -197,6 +288,29 @@ if tabla_sector:
     pdf.set_font("helvetica", '', 11)
     for linea in tabla_sector.splitlines():
         pdf.multi_cell(0, 8, linea)
+
+if rupturas:
+    pdf.add_page()
+    pdf.set_font("helvetica", 'B', 14)
+    pdf.cell(0, 10, "Rupturas de Correlación (últimos 6m vs anteriores)", ln=True)
+    pdf.set_font("helvetica", '', 11)
+    explicacion = (
+        "A continuación se presentan los pares de activos cuya correlación cambió significativamente "
+        "en los últimos 6 meses en comparación con los 6 meses anteriores. "
+        "Un aumento en la correlación indica que los activos se están moviendo más en conjunto, "
+        "mientras que una disminución sugiere que ahora tienen comportamientos más independientes.\n\n"
+        "Esto puede ser útil para detectar cambios estructurales en el mercado, oportunidades de cobertura o ajuste en estrategias de diversificación."
+    )
+    pdf.multi_cell(0, 8, explicacion)
+    pdf.ln(4)
+
+    if os.path.exists(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png")):
+        pdf.image(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png"), x=15, w=180)
+        pdf.ln(10)
+
+    for r in rupturas:
+        pdf.multi_cell(0, 8, r)
+
 
 try:
     pdf.output(pdf_path)
