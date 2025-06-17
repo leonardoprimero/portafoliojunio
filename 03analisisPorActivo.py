@@ -33,9 +33,10 @@ USAR_ESCALA_LOGARITMICA = False  # Cambiar a True para gráficos logarítmicos
 
 # Configuración de archivos y carpetas
 CARPETA_DATOS = './datospython1'  # Carpeta donde están los datos reales
-CARPETA_GRAFICOS = './graficos_temp'
-ARCHIVO_PDF = 'reporte_analisis_final.pdf'
-ARCHIVO_EXCEL = 'analisis_activos_final.xlsx'
+CARPETA_GRAFICOS = './analisisPorActivo'  # Carpeta donde se guardarán los gráficos generados
+ARCHIVO_PDF = os.path.join(CARPETA_GRAFICOS, 'reporte_analisis_final.pdf')
+ARCHIVO_EXCEL = os.path.join(CARPETA_GRAFICOS, 'analisis_activos_final.xlsx')
+
 
 # Información del autor
 AUTOR_NOMBRE = "Leonardo Caliva"
@@ -663,8 +664,8 @@ def main():
         crear_excel_REALMENTE_corregido(resultados, dataframes)
         
         # Limpiar archivos temporales
-        if os.path.exists(CARPETA_GRAFICOS):
-            shutil.rmtree(CARPETA_GRAFICOS)
+       # if os.path.exists(CARPETA_GRAFICOS):
+        #    shutil.rmtree(CARPETA_GRAFICOS)
         
         print("\n" + "="*60)
         print("ANÁLISIS FINAL COMPLETADO - TODOS LOS PROBLEMAS SOLUCIONADOS")

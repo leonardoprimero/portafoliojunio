@@ -19,6 +19,10 @@ VENV/
 
 # Datos y gráficos temporales (si no querés subirlos)fhf
 graficos_temp/
+matriz_correlacion1/
+matriz_correlacion2/
+matriz_correlacion3/
+analisisPorActivo/
 datospython1/
 logs/
 charts_profesionales/

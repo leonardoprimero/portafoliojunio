@@ -15,17 +15,17 @@ from datetime import datetime
 }'''
 
 sectores = {
-    'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'META', 'AVGO', 'ORCL', 'ADBE'],
-    'Salud': ['JNJ', 'PFE', 'MRK', 'UNH', 'ABBV', 'LLY', 'TMO', 'BMY'],
-    'Finanzas': ['JPM', 'BAC', 'WFC', 'C', 'GS', 'MS', 'AXP', 'BK'],
-    'Energía': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'PSX', 'MPC', 'HAL'],
-    'Consumo discrecional': ['AMZN', 'TSLA', 'HD', 'MCD', 'NKE', 'LOW', 'SBUX'],
-    'Consumo básico': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'MDLZ'],
-    'Industriales': ['HON', 'GE', 'UPS', 'CAT', 'RTX', 'LMT'],
-    'Utilities': ['NEE', 'DUK', 'SO', 'AEP', 'EXC'],
-    'Materiales': ['LIN', 'APD', 'ECL', 'NEM', 'SHW'],
-    'Comunicaciones': ['VZ', 'T', 'CHTR', 'TMUS', 'DIS'],
-    'Real Estate': ['PLD', 'AMT', 'CCI', 'SPG', 'O'],
+    'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'ORCL'],
+    'Salud': ['JNJ', 'PFE'],
+    'Finanzas': ['JPM', 'WFC', 'C', 'GS'],
+    'Energía': ['XOM', 'CVX', 'COP', 'SLB'],
+    'Consumo discrecional': ['AMZN', 'TSLA', 'MCD'],
+    'Consumo básico': ['PG', 'KO', 'WMT'],
+    'Industriales': ['HON', 'GE', 'UPS', 'CAT'],
+    'Utilities': [ 'SO', 'EXC'],
+    'Materiales': [ 'APD', 'ECL'],
+    'Comunicaciones': ['VZ', 'T', 'DIS'],
+    'Real Estate': ['PLD', 'AMT'],
     'Benchmark': ['SPY']
     }
 

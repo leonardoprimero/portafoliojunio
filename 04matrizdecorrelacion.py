@@ -13,7 +13,7 @@ import scipy.cluster.hierarchy as sch
 
 # ------------------------ CONFIGURACIÓN ------------------------
 CARPETA_DATOS = './datospython1'
-CARPETA_SALIDA = './graficos_temp'
+CARPETA_SALIDA = './matriz_correlacion1'
 os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
 # ------------------------ LECTURA Y PREPARACIÓN ------------------------

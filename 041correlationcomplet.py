@@ -11,7 +11,7 @@ import scipy.cluster.hierarchy as sch
    
 
 CARPETA_DATOS = './datospython1'
-CARPETA_SALIDA = './graficos_temp'
+CARPETA_SALIDA = './matriz_correlacion2'
 os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
 print(f"Directorio actual: {os.getcwd()}")
