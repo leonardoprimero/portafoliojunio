@@ -3,13 +3,16 @@ import os
 import requests
 import pandas as pd
 
+CARPETA_DATOS = './FundamentalActivos'
+os.makedirs(CARPETA_DATOS, exist_ok=True)
+
 # Rutas a las fuentes DejaVu
 FUENTE_REGULAR = "./fonts/DejaVuSans.ttf"
 FUENTE_BOLD = "./fonts/DejaVuSans-Bold.ttf"
 
 
 # Leer los informes desde CSV
-df_info = pd.read_csv('informe_empresas.csv')
+df_info = pd.read_csv(os.path.join(CARPETA_DATOS, 'informe_empresas.csv'))
 informes = df_info.to_dict(orient='records')
 
 # Crear PDF y registrar fuente con soporte Unicode
@@ -78,7 +81,7 @@ for empresa in informes:
     pdf.cell(0, 8, f"Ingresos Netos: {empresa['Ingresos Netos']}", ln=True)
     pdf.cell(0, 8, f"Beta: {empresa['Beta']}", ln=True)
 
-pdf.output("informe_empresas.pdf")
+pdf.output(os.path.join(CARPETA_DATOS, "informe_empresas.pdf"))
 print("✅ PDF generado correctamente con soporte Unicode: informe_empresas.pdf")
 
 

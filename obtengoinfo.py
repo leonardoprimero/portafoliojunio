@@ -1,8 +1,11 @@
 import yfinance as yf
 import wikipedia
 import requests
-import os
 import pandas as pd
+import os
+
+CARPETA_SALIDA = './FundamentalActivos'
+os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
 # Carpeta con archivos de tickers
 CARPETA_TICKERS = './datospython1'
@@ -66,14 +69,14 @@ for t in tickers:
         errores.append({'Ticker': t, 'Error': str(e)})
 
 # Guardar como CSV para usar luego
-pd.DataFrame(informes).to_csv("informe_empresas.csv", index=False)
+pd.DataFrame(informes).to_csv(os.path.join(CARPETA_SALIDA, "informe_empresas.csv"), index=False)
 print("✅ Archivo CSV guardado: informe_empresas.csv")
 
 
 
 
 if errores:
-    pd.DataFrame(errores).to_csv("errores_wikipedia_clearbit.csv", index=False)
+    pd.DataFrame(errores).to_csv(os.path.join(CARPETA_SALIDA, "errores_wikipedia_clearbit.csv"), index=False)
     print("⚠️ Errores guardados en errores_wikipedia_clearbit.csv")
 
 print(f"🟢 Informes exitosos: {len(informes)}")
