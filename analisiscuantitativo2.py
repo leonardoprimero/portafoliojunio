@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
+import yfinance as yf
 import pandas as pd
 import numpy as np
 import os
@@ -27,11 +27,20 @@ plt.rcParams["axes.unicode_minus"] = False
 
 warnings.filterwarnings('ignore')
 
+# --- CONFIGURACIÓN DE FUENTE DE DATOS ---
+FUENTE_DATOS = "web"  # "web" o "local"
+
+if FUENTE_DATOS == "web":
+    TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "SPY"]
+    FECHA_INICIO = "2020-01-01"
+    FECHA_FIN = "2024-12-31"
+else:
+    CARPETA_LOCALES = "./carpeta_datos_locales"  # carpeta con CSVs o Excels
+
 # --- CONFIGURACIÓN GLOBAL ---
 CARPETA_SALIDA = "DatosCartera"
 CARPETA_GRAFICOS_TEMP = os.path.join(CARPETA_SALIDA, "temp_graficos")
 CARPETA_DATOS_CACHE = os.path.join(CARPETA_SALIDA, "data_cache")
-CARPETA_LOCALES = "./datospython1"
 BENCHMARK_DEFAULT = "SPY"
 
 # Asegurar que las carpetas existan
@@ -40,9 +49,43 @@ os.makedirs(CARPETA_GRAFICOS_TEMP, exist_ok=True)
 os.makedirs(CARPETA_DATOS_CACHE, exist_ok=True)
 
 # --- FUNCIONES DE UTILIDAD ---
+dataframes = {}
 
+if FUENTE_DATOS == "web":
+    import yfinance as yf
+    for ticker in TICKERS:
+        try:
+            df = yf.download(ticker, start=FECHA_INICIO, end=FECHA_FIN, progress=False)
+            if 'Adj Close' in df.columns:
+                df = df[['Adj Close']].rename(columns={'Adj Close': ticker})
+            else:
+                df = df[['Close']].rename(columns={'Close': ticker})
+            dataframes[ticker] = df
+        except Exception as e:
+            print(f"❌ Error al descargar {ticker}: {e}")
 
+elif FUENTE_DATOS == "local":
+    import os
+    import pandas as pd
 
+    for archivo in os.listdir(CARPETA_LOCALES):
+        if archivo.endswith((".csv", ".xlsx", ".xls")):
+            ruta = os.path.join(CARPETA_LOCALES, archivo)
+            nombre = os.path.splitext(archivo)[0].upper()
+            try:
+                if archivo.endswith(".csv"):
+                    df = pd.read_csv(ruta, index_col=0, parse_dates=True)
+                else:
+                    df = pd.read_excel(ruta, index_col=0, parse_dates=True)
+
+                if 'Adj Close' in df.columns:
+                    df = df[['Adj Close']].rename(columns={'Adj Close': nombre})
+                else:
+                    df = df[['Close']].rename(columns={'Close': nombre})
+
+                dataframes[nombre] = df
+            except Exception as e:
+                print(f"❌ Error leyendo {archivo}: {e}")
 
 def calcular_beta(activo, benchmark, retornos_combinados):
     """
@@ -467,53 +510,17 @@ if __name__ == "__main__":
     print("🚀 Iniciando análisis cuantitativo completo de carteras...")
     
     # Cargar o descargar datos
-    FUENTE_DATOS = "local" # Define la fuente de datos (puede ser "local" o "yfinance")
-
-    if FUENTE_DATOS == "local":
-        dataframes = {}
-        for archivo in os.listdir(CARPETA_LOCALES):
-            nombre_sin_ext = os.path.splitext(archivo)[0]
-
-            # Solo archivos con nombre completamente en MAYÚSCULAS
-            if not nombre_sin_ext.isupper():
-                continue
-
-            # Solo procesar CSV, XLSX, XLS
-            if not archivo.lower().endswith((".csv", ".xlsx", ".xls")):
-                continue
-
-            ruta = os.path.join(CARPETA_LOCALES, archivo)
-            try:
-                if archivo.lower().endswith(".csv"):
-                    df = pd.read_csv(ruta, index_col=0, parse_dates=True)
-                else:
-                    df = pd.read_excel(ruta, index_col=0, parse_dates=True)
-
-                # Buscar columna que contenga 'close' (sin importar mayúsculas/minúsculas)
-                col_match = [col for col in df.columns if 'close' in col.lower()]
-                if col_match:
-                    df = df[[col_match[0]]].rename(columns={col_match[0]: nombre_sin_ext})
-                    dataframes[nombre_sin_ext] = df
-                    print(f"✅ Cargado: {archivo} usando columna '{col_match[0]}'")
-                else:
-                    print(f"⚠️ Archivo {archivo} no tiene columna que contenga 'Close'. Saltando.")
-
-            except Exception as e:
-                print(f"❌ Error leyendo {archivo}: {e}")
-        
-        if not dataframes:
-            print("❌ No se encontraron datos válidos desde los archivos locales. Abortando.")
-            exit()
-        
-        df_precios = pd.concat(dataframes.values(), axis=1)
-        print(f"\n📊 Datos de precios cargados correctamente")
-        print(f"Período: {df_precios.index.min().date()} a {df_precios.index.max().date()}")
-        print(f"Activos: {list(df_precios.columns)}")
-
-    else:
-        # Aquí iría la lógica para otras fuentes de datos si se implementaran
-        print("❌ FUENTE_DATOS no reconocida o no implementada. Abortando.")
+    df_precios = cargar_datos_locales(activos_cartera, benchmark_elegido)
+    if df_precios is None or df_precios.empty:
+        df_precios = descargar_datos(activos_cartera, fecha_inicio_analisis, fecha_fin_analisis, benchmark_elegido)
+    
+    if df_precios.empty:
+        print("❌ No se pudieron obtener datos para el análisis. Saliendo.")
         exit()
+
+    print(f"\n📊 Datos de precios cargados correctamente")
+    print(f"Período: {df_precios.index[0]} a {df_precios.index[-1]}")
+    print(f"Activos: {list(df_precios.columns)}")
     
     # Separar benchmark
     if benchmark_elegido in df_precios.columns:
