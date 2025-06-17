@@ -24,7 +24,7 @@ for archivo in os.listdir(CARPETA_DATOS):
     nombre = os.path.splitext(archivo)[0]
     try:
         if archivo.endswith('.csv'):
-            df = pd.read_csv(ruta, index_col=0, parse_dates=True)
+            df = pd.read_csv(ruta, index_col=0, parse_dates=True, date_parser=lambda x: pd.to_datetime(x, format="%Y-%m-%d", errors='coerce'))
         elif archivo.endswith('.xlsx') or archivo.endswith('.xls'):
             df = pd.read_excel(ruta, index_col=0, parse_dates=True)
         else:
@@ -63,7 +63,9 @@ matriz_correlacion = matriz_correlacion.iloc[orden, orden]
 
 # Updated Gráfico 1: Matriz de Correlación (Heatmap) con Clustering Jerárquico
 img_path = os.path.join(CARPETA_SALIDA, 'heatmap_correlacion.png')
-plt.figure(figsize=(12, 10))
+fig_height = max(10, len(matriz_correlacion) * 0.4)
+fig_width = fig_height * 0.9
+plt.figure(figsize=(fig_width, fig_height))
 sns.set(style="whitegrid", font_scale=1.1)
 sns.heatmap(matriz_correlacion, annot=True, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1,
             square=True, linewidths=0.5, cbar_kws={'label': 'Correlación'})
@@ -77,7 +79,10 @@ print(f"✅ Imagen generada: {img_path}")
 # ==== Gráfico 2: Dendrograma ====
 from scipy.cluster.hierarchy import linkage, dendrogram
 dendro_path = os.path.join(CARPETA_SALIDA, 'dendrograma_clustering.png')
-linkage_matrix = linkage(1 - matriz_correlacion.abs(), method='ward')
+from scipy.spatial.distance import squareform
+distance_matrix = 1 - matriz_correlacion.abs()
+condensed_distance = squareform(distance_matrix, checks=False)
+linkage_matrix = linkage(condensed_distance, method='ward')
 plt.figure(figsize=(12, 5))
 dendrogram(linkage_matrix, labels=matriz_correlacion.columns, leaf_rotation=45)
 plt.title('Dendrograma de Clustering de Activos')
@@ -254,7 +259,7 @@ if sector_correlations:
     print(f"✅ Imagen generada: {sector_img_path}")
 
 # ==== IMAGEN DE INSIGHTS AUTOMÁTICOS ====
-insights_img_path = None
+
 if len(insights) > 0:
     insights_img_paths = []
 chunk_size = 30  # máximo de líneas por imagen
@@ -271,7 +276,7 @@ for chunk_index, start in enumerate(range(0, len(insights), chunk_size)):
     plt.close()
     insights_img_paths.append(chunk_path)
     plt.close()
-    print(f"✅ Imagen generada: {insights_img_path}")
+    print(f"✅ Imagen generada: {chunk_path}")
 
 # ==== INICIO BLOQUE PDF ====
 # ==== PDF PROFESIONAL COMPLETO ====
@@ -281,7 +286,7 @@ pdf.set_auto_page_break(auto=True, margin=15)
 pdf.add_page()
 
 # --------- Portada ---------
-pdf.set_font("helvetica", 'B', 16)
+pdf.set_font("times", "B", 16)
 pdf.cell(0, 10, "Informe de Correlación Financiera", align="C")
 pdf.ln(10)
 pdf.set_font("helvetica", '', 12)
