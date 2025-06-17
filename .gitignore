@@ -30,6 +30,7 @@ DatosCartera/
 # Excel y PDF generados
 *.xlsx
 *.pdf
+*.csv
 
 # Config VSCode
 .vscode/
