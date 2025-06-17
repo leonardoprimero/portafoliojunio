@@ -31,6 +31,8 @@ DatosCartera/
 *.xlsx
 *.pdf
 *.csv
+*.png
+
 
 # Config VSCode
 .vscode/
