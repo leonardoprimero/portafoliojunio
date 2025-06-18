@@ -15,16 +15,16 @@ from datetime import datetime
 }'''
 
 sectores = {
-    'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'ORCL'],
+    'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL'],
     'Salud': ['JNJ', 'PFE'],
     'Finanzas': ['JPM', 'WFC', 'C', 'GS'],
-    'Energía': ['XOM', 'CVX', 'COP', 'SLB'],
+    'Energía': ['XOM', 'CVX', 'COP'],
     'Consumo discrecional': ['AMZN', 'TSLA', 'MCD'],
     'Consumo básico': ['PG', 'KO', 'WMT'],
-    'Industriales': ['HON', 'GE', 'UPS', 'CAT'],
+    'Industriales': ['HON', 'UPS', 'CAT'],
     'Utilities': [ 'SO', 'EXC'],
     'Materiales': [ 'APD', 'ECL'],
-    'Comunicaciones': ['VZ', 'T', 'DIS'],
+    'Comunicaciones': ['T', 'DIS'],
     'Real Estate': ['PLD', 'AMT'],
     'Benchmark': ['SPY']
     }
