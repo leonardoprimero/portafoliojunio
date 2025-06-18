@@ -24,15 +24,46 @@ import shutil
 from datetime import datetime, timedelta
 from textwrap import wrap
 import warnings
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 # ========================= CONFIGURACIÓN =========================
 
-# CONFIGURACIÓN PRINCIPAL - CAMBIAR AQUÍ PARA USAR ESCALA LOGARÍTMICA
-USAR_ESCALA_LOGARITMICA = False  # Cambiar a True para gráficos logarítmicos
+# CONFIGURACIÓN PRINCIPAL
+
+# Escala de los gráficos de precios
+# Opciones: "linear" o "log"
+ESCALA_PRECIOS = "log"
+
+# Tema visual de los gráficos
+# Opciones:
+# "light" (fondo claro, paleta profesional)
+# "dark" (fondo oscuro, paleta profesional)
+# "vintage" (estilo avejentado, paleta profesional)
+# "normal" (estilo por defecto de seaborn-v0_8-whitegrid)
+TEMA_GRAFICOS = "dark"
+
+# Medias Móviles (días)
+SMA_CORTA = 21
+SMA_MEDIA = 63
+SMA_LARGA = 252
+
+# Configuración de indicadores técnicos adicionales
+ACTIVAR_RSI = True # Cambiar a True para activar el cálculo y visualización
+RSI_PERIOD = 14
+
+ACTIVAR_MACD = True # Cambiar a True para activar el cálculo y visualización
+MACD_FAST_PERIOD = 12
+MACD_SLOW_PERIOD = 26
+MACD_SIGNAL_PERIOD = 9
+
+ACTIVAR_BBANDS = True # Cambiar a True para activar el cálculo y visualización
+BBANDS_PERIOD = 20
+BBANDS_DEV = 2
+
+ACTIVAR_VOLUMEN = True # Cambiar a True para activar el análisis de volumen
 
 # Configuración de archivos y carpetas
-CARPETA_DATOS = './datospython1'  # Carpeta donde están los datos reales
+CARPETA_DATOS = './datospython1'  # Carpeta donde están los datos reales (CSV)
 CARPETA_GRAFICOS = './analisisPorActivo'  # Carpeta donde se guardarán los gráficos generados
 ARCHIVO_PDF = os.path.join(CARPETA_GRAFICOS, 'reporte_analisis_final.pdf')
 ARCHIVO_EXCEL = os.path.join(CARPETA_GRAFICOS, 'analisis_activos_final.xlsx')
@@ -43,10 +74,34 @@ AUTOR_NOMBRE = "Leonardo Caliva"
 AUTOR_PORTFOLIO = "leocaliva.com"
 
 # Configuración de matplotlib para A4 y sin superposición
-def configurar_matplotlib():
-    """Configurar matplotlib para A4 perfecto"""
-    plt.style.use('seaborn-v0_8-whitegrid')
-    sns.set_palette("Set2")
+def configurar_matplotlib(tema):
+    """Configurar matplotlib para A4 perfecto y aplicar tema"""
+    # Colores base para los gráficos según el tema
+    if tema == "light":
+        plt.style.use('seaborn-v0_8-whitegrid')
+        sns.set_palette("viridis") # Paleta moderna y profesional
+        facecolor_plot = 'white'
+        textcolor_plot = '#212121'
+        linecolor_plot = '#424242'
+    elif tema == "dark":
+        plt.style.use('dark_background') # Fondo oscuro
+        sns.set_palette("viridis") # Paleta moderna y profesional
+        facecolor_plot = '#282c34'
+        textcolor_plot = '#abb2bf'
+        linecolor_plot = '#61afef'
+    elif tema == "vintage":
+        plt.style.use('seaborn-v0_8-pastel') # Estilo más suave, vintage
+        sns.set_palette("deep") # Paleta con colores más apagados
+        facecolor_plot = '#f0f0d0'
+        textcolor_plot = '#5c5c5c'
+        linecolor_plot = '#8b4513'
+    else: # "normal" o cualquier otro valor
+        plt.style.use('seaborn-v0_8-whitegrid')
+        sns.set_palette("Set2")
+        facecolor_plot = 'white'
+        textcolor_plot = '#212121'
+        linecolor_plot = '#424242'
+
     plt.rcParams.update({
         'figure.figsize': (7.5, 5),  # MÁS PEQUEÑO para A4
         'axes.labelsize': 9,
@@ -56,54 +111,44 @@ def configurar_matplotlib():
         'ytick.labelsize': 8,
         'font.size': 9,
         'pdf.fonttype': 42,
-        'ps.fonttype': 42
+        'ps.fonttype': 42,
+        'figure.facecolor': 'white',  # Fondo de la figura siempre blanco para el PDF
+        'axes.facecolor': facecolor_plot, # Fondo del área de plot según el tema
+        'text.color': textcolor_plot,
+        'axes.labelcolor': textcolor_plot,
+        'xtick.color': textcolor_plot, 
+        'ytick.color': textcolor_plot, 
+        'grid.color': linecolor_plot,
+        'grid.alpha': 0.3
     })
-
-# ========================= GENERACIÓN DE DATOS DE PRUEBA =========================
-
-def generar_datos_prueba():
-    """Genera datos de prueba aleatorios para testing"""
-    print("Generando datos de prueba aleatorios...")
     
-    os.makedirs(CARPETA_DATOS, exist_ok=True)
-    
-    # Lista de activos de ejemplo
-    activos = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN']
-    
-    # Generar datos para cada activo
-    for activo in activos:
-        # Configurar fechas (últimos 2 años)
-        fecha_inicio = datetime.now() - timedelta(days=730)
-        fechas = pd.date_range(start=fecha_inicio, periods=500, freq='D')
+    # Configurar fuentes para caracteres griegos
+    # Asegúrate de que las fuentes estén en la carpeta 'fonts' en el mismo directorio que el script
+    try:
+        from matplotlib import font_manager
+        font_dirs = [os.path.join(os.path.dirname(__file__), 'fonts')]
+        font_files = font_manager.findSystemFonts(fontpaths=font_dirs)
+        for font_file in font_files:
+            font_manager.fontManager.addfont(font_file)
         
-        # Generar precios realistas usando random walk
-        np.random.seed(hash(activo) % 1000)  # Seed basada en el nombre para consistencia
-        precio_inicial = np.random.uniform(50, 300)
-        retornos = np.random.normal(0.0005, 0.02, len(fechas))  # Retornos diarios
-        precios = [precio_inicial]
+        # Establecer la fuente predeterminada para el texto
+        plt.rcParams['font.family'] = 'DejaVu Sans'
+        plt.rcParams['font.sans-serif'] = ['DejaVu Sans']
         
-        for retorno in retornos[1:]:
-            nuevo_precio = precios[-1] * (1 + retorno)
-            precios.append(max(nuevo_precio, 1))  # Evitar precios negativos
+        # Para negritas
+        plt.rcParams['font.weight'] = 'normal'
+        plt.rcParams['axes.titleweight'] = 'bold'
+        plt.rcParams['axes.labelweight'] = 'normal'
         
-        # Crear DataFrame
-        df = pd.DataFrame({
-            'Fecha': fechas,
-            'Precio': precios,
-            'Volumen': np.random.randint(1000000, 10000000, len(fechas))
-        })
-        
-        # Guardar archivo
-        archivo_salida = os.path.join(CARPETA_DATOS, f'{activo}.xlsx')
-        df.to_excel(archivo_salida, index=False)
-        print(f"   Generado: {archivo_salida}")
+    except Exception as e:
+        print(f"Advertencia: No se pudieron cargar las fuentes personalizadas. {e}")
+        print("Asegúrate de que los archivos de fuente (.ttf) estén en la carpeta 'fonts'.")
 
 # ========================= ANÁLISIS FINANCIERO =========================
 
-def crear_portada_pdf(pdf, tickers):
+def crear_portada_pdf(pdf, tickers, autor_nombre, autor_portfolio):
     """Crea una portada profesional para el PDF"""
     fig = plt.figure(figsize=(8.27, 11.69))  # Tamaño A4
-    fig.patch.set_facecolor('white')
     
     # Configurar el layout sin ejes
     ax = fig.add_subplot(111)
@@ -132,17 +177,19 @@ def crear_portada_pdf(pdf, tickers):
     else:
         font_size = 9
 
-    # Envolver para que no se pase del ancho
-    wrapped_lines = wrap(tickers_str, width=80)  # Podés ajustar el width si querés más o menos líneas
-    y_pos = 0.78
-
-    for line in wrapped_lines:
-        ax.text(0.5, y_pos, line,
+    # Envolver para que no se pase del ancho y ajustar posición Y
+    wrapped_lines = wrap(tickers_str, width=80)
+    # Calcular la posición Y inicial para centrar el bloque de tickers
+    num_lines = len(wrapped_lines)
+    y_pos_start = 0.78 + (num_lines * 0.0175) # Ajuste para centrar visualmente
+    
+    for i, line in enumerate(wrapped_lines):
+        ax.text(0.5, y_pos_start - (i * 0.035), line, # Ajuste vertical más fino
                 fontsize=font_size, ha='center', va='center', style='italic',
                 color='#424242', transform=ax.transAxes)
-        y_pos -= 0.035  # Espaciado vertical entre líneas
     
-
+    # Posición inicial de la descripción ajustada para que no se superponga
+    descripcion_y_start = y_pos_start - (num_lines * 0.035) - 0.05 # Deja espacio después de los tickers
     
     # Descripción del contenido
     descripcion = """CONTENIDO DEL INFORME:
@@ -161,16 +208,16 @@ METODOLOGÍA:
 • Cálculo de retornos anualizados con base en 252 días hábiles
 • Análisis estadístico de distribución de retornos"""
     
-    ax.text(0.1, 0.58, descripcion, 
+    ax.text(0.1, descripcion_y_start, descripcion, # Usa la posición Y ajustada
             fontsize=11, ha='left', va='top',
             color='#424242', transform=ax.transAxes)
     
     # Información del autor
-    ax.text(0.5, 0.25, f'Desarrollado por: {AUTOR_NOMBRE}', 
-            fontsize=14, ha='center', va='center', weight='bold',
+    ax.text(0.5, 0.25, f'Desarrollado por: {autor_nombre}', 
+            fontsize=14, weight='bold', ha='center', va='center',
             color='#1a237e', transform=ax.transAxes)
     
-    ax.text(0.5, 0.21, f'{AUTOR_PORTFOLIO}', 
+    ax.text(0.5, 0.21, f'{autor_portfolio}', 
             fontsize=12, ha='center', va='center', style='italic',
             color='#424242', transform=ax.transAxes)
     
@@ -183,25 +230,29 @@ METODOLOGÍA:
     # Espacio reservado - sin nota adicional para mantener diseño limpio
     
     # Pie de página (sin interferir con contenido)
-    fig.text(0.5, 0.02, AUTOR_PORTFOLIO, 
+    fig.text(0.5, 0.02, autor_portfolio, 
             ha='center', va='bottom', fontsize=9, color='#1a237e')
     
     plt.tight_layout()
     pdf.savefig(fig, bbox_inches='tight')
     plt.close(fig)
 
-def agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas):
-    """Función deshabilitada - sin pie de página para mejor estética"""
-    # No agregamos pie de página para mantener diseño limpio
-    pass
+def agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio):
+    """Agrega pie de página profesional sin superponerse"""
+    # Ajusta estas coordenadas y tamaño de fuente según sea necesario para tu diseño A4.
+    # El 0.5 es el centro horizontal. El 0.02 es la distancia desde la parte inferior.
+    fig.text(0.5, 0.02, 
+             f'Página {numero_pagina}/{total_paginas} | {autor_nombre} | {autor_portfolio} | {datetime.now().year}',
+             ha='center', va='bottom', fontsize=8, color='#666666')
 
-def crear_grafico_precios(df, nombre, usar_log=False, numero_pagina=1, total_paginas=1):
+
+def crear_grafico_precios(df, nombre, escala, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO, sma_corta=SMA_CORTA, sma_media=SMA_MEDIA, sma_larga=SMA_LARGA):
     """Crea gráfico de precios SIN superposición con pie de página"""
     # TAMAÑO REDUCIDO para que quepa perfecto en A4
     fig, ax = plt.subplots(figsize=(7.5, 4.5))  
     
     # Configurar escala
-    if usar_log:
+    if escala == "log":
         ax.set_yscale('log')
         titulo_extra = " (Escala Logarítmica)"
     else:
@@ -209,10 +260,16 @@ def crear_grafico_precios(df, nombre, usar_log=False, numero_pagina=1, total_pag
     
     # Plotear datos
     df['Precio'].plot(ax=ax, label='Precio', linewidth=1.5, color='#1976d2')
-    df['SMA_21'].plot(ax=ax, label='SMA 21d', linewidth=1, color='#d32f2f')
-    df['SMA_63'].plot(ax=ax, label='SMA 63d', linewidth=1, color='#f57c00')
-    df['SMA_252'].plot(ax=ax, label='SMA 252d', linewidth=1.5, color='#388e3c')
+    df[f'SMA_{sma_corta}'].plot(ax=ax, label=f'SMA {sma_corta}d', linewidth=1, color='#d32f2f')
+    df[f'SMA_{sma_media}'].plot(ax=ax, label=f'SMA {sma_media}d', linewidth=1, color='#f57c00')
+    df[f'SMA_{sma_larga}'].plot(ax=ax, label=f'SMA {sma_larga}d', linewidth=1.5, color='#388e3c')
     
+    # Plotear Bandas de Bollinger si están activadas
+    if ACTIVAR_BBANDS and 'BB_Upper' in df.columns and 'BB_Lower' in df.columns and 'BB_Middle' in df.columns:
+        ax.plot(df['BB_Upper'], label='Banda Superior BB', color='gray', linestyle='--', linewidth=0.8)
+        ax.plot(df['BB_Middle'], label='Banda Media BB', color='gray', linestyle='-', linewidth=0.8)
+        ax.plot(df['BB_Lower'], label='Banda Inferior BB', color='gray', linestyle='--', linewidth=0.8)
+
     ax.set_title(f'{nombre} - Análisis de Precios{titulo_extra}', 
                 fontsize=12, weight='bold', color='#1a237e')
     ax.set_ylabel("Precio (USD)", fontsize=10)
@@ -225,11 +282,73 @@ def crear_grafico_precios(df, nombre, usar_log=False, numero_pagina=1, total_pag
     plt.subplots_adjust(bottom=0.15)  # Espacio para pie de página
     
     # Agregar pie de página SIN superposición
-    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
     
     return fig
 
-def crear_grafico_retornos(df, nombre, numero_pagina=1, total_paginas=1):
+def crear_grafico_rsi(df, nombre, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO):
+    """Crea gráfico de RSI"""
+    fig, ax = plt.subplots(figsize=(7.5, 2.5)) # Más pequeño para RSI
+    if 'RSI' in df.columns:
+        ax.plot(df['RSI'], label='RSI', color='#8e24aa', linewidth=1.2)
+        ax.axhline(70, linestyle='--', alpha=0.6, color='red', label='Sobrecompra (70)')
+        ax.axhline(30, linestyle='--', alpha=0.6, color='green', label='Sobreventa (30)')
+        ax.set_ylim(0, 100)
+        ax.set_title(f'{nombre} - Índice de Fuerza Relativa (RSI)', fontsize=12, weight='bold', color='#1a237e')
+        ax.set_ylabel('RSI', fontsize=10)
+        ax.set_xlabel('Fecha', fontsize=10)
+        ax.legend(loc='upper left', fontsize=8)
+        ax.grid(True, alpha=0.3)
+    else:
+        ax.text(0.5, 0.5, 'RSI no disponible', horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, fontsize=12, color='gray')
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.15)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
+    return fig
+
+def crear_grafico_macd(df, nombre, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO):
+    """Crea gráfico de MACD"""
+    fig, ax = plt.subplots(figsize=(7.5, 2.5)) # Más pequeño para MACD
+    if 'MACD' in df.columns and 'MACD_Signal' in df.columns and 'MACD_Hist' in df.columns:
+        ax.plot(df['MACD'], label='MACD', color='#00796b', linewidth=1.2)
+        ax.plot(df['MACD_Signal'], label='Señal', color='#d84315', linewidth=1.2)
+        ax.bar(df.index, df['MACD_Hist'], label='Histograma', color='#4db6ac', alpha=0.6)
+        ax.axhline(0, color='gray', linestyle='--', linewidth=0.8)
+        ax.set_title(f'{nombre} - MACD', fontsize=12, weight='bold', color='#1a237e')
+        ax.set_ylabel('Valor', fontsize=10)
+        ax.set_xlabel('Fecha', fontsize=10)
+        ax.legend(loc='upper left', fontsize=8)
+        ax.grid(True, alpha=0.3)
+    else:
+        ax.text(0.5, 0.5, 'MACD no disponible', horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, fontsize=12, color='gray')
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.15)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
+    return fig
+
+def crear_grafico_volumen(df, nombre, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO):
+    """Crea gráfico de Volumen"""
+    fig, ax = plt.subplots(figsize=(7.5, 2.5)) # Más pequeño para Volumen
+    if 'Volume' in df.columns:
+        ax.bar(df.index, df['Volume'], color='#6a1b9a', alpha=0.7)
+        ax.set_title(f'{nombre} - Volumen de Negociación', fontsize=12, weight='bold', color='#1a237e')
+        ax.set_ylabel('Volumen', fontsize=10)
+        ax.set_xlabel('Fecha', fontsize=10)
+        ax.grid(True, alpha=0.3)
+    else:
+        ax.text(0.5, 0.5, 'Volumen no disponible', horizontalalignment='center', verticalalignment='center', transform=ax.transAxes, fontsize=12, color='gray')
+        ax.axis('off')
+
+    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.15)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
+    return fig
+
+def crear_grafico_retornos(df, nombre, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO):
     """Crea gráfico de retornos SIN superposición"""
     fig, ax = plt.subplots(figsize=(7.5, 4))
     
@@ -239,8 +358,8 @@ def crear_grafico_retornos(df, nombre, numero_pagina=1, total_paginas=1):
     # Agregar bandas de volatilidad
     retorno_medio = df['Retorno'].mean()
     vol_std = df['Retorno'].std()
-    ax.axhline(retorno_medio + vol_std, color='#d32f2f', linestyle=':', alpha=0.6, label='+1σ')
-    ax.axhline(retorno_medio - vol_std, color='#d32f2f', linestyle=':', alpha=0.6, label='-1σ')
+    ax.axhline(retorno_medio + vol_std, color='#d32f2f', linestyle=':', alpha=0.6, label=f'+1σ: {retorno_medio + vol_std:.4f}')
+    ax.axhline(retorno_medio - vol_std, color='#d32f2f', linestyle=':', alpha=0.6, label=f'-1σ: {retorno_medio - vol_std:.4f}')
     
     ax.set_title(f'{nombre} - Retornos Diarios', fontsize=12, weight='bold', color='#1a237e')
     ax.set_ylabel("Retorno (%)", fontsize=10)
@@ -252,11 +371,11 @@ def crear_grafico_retornos(df, nombre, numero_pagina=1, total_paginas=1):
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.15)
     
-    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
     
     return fig
 
-def crear_histograma_retornos(df, nombre, numero_pagina=1, total_paginas=1):
+def crear_histograma_retornos(df, nombre, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO):
     """Crea histograma SIN superposición"""
     fig, ax = plt.subplots(figsize=(7.5, 4.5))
     
@@ -285,11 +404,11 @@ def crear_histograma_retornos(df, nombre, numero_pagina=1, total_paginas=1):
     plt.tight_layout()
     plt.subplots_adjust(bottom=0.15)
     
-    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
     
     return fig
 
-def crear_comentario_activo(nombre, stats, df, numero_pagina=1, total_paginas=1):
+def crear_comentario_activo(nombre, stats, df, numero_pagina=1, total_paginas=1, autor_nombre=AUTOR_NOMBRE, autor_portfolio=AUTOR_PORTFOLIO, sma_corta=SMA_CORTA, sma_media=SMA_MEDIA, sma_larga=SMA_LARGA):
     """Crea página de comentarios para cada activo"""
     fig, ax = plt.subplots(figsize=(8.27, 10.5))  # Reducido para dejar espacio al pie
     ax.axis('off')
@@ -311,29 +430,29 @@ Volatilidad Diaria: {stats['volatilidad_diaria']*100:.2f}%
 Volatilidad Mensual: {stats['volatilidad_mensual']*100:.2f}%
 
 MEDIAS MÓVILES:
-• SMA 21 días: ${stats['sma_21']:.2f}
-• SMA 63 días: ${stats['sma_63']:.2f} 
-• SMA 252 días: ${stats['sma_252']:.2f}
+• SMA {sma_corta} días: ${stats[f'sma_{sma_corta}']:.2f}
+• SMA {sma_media} días: ${stats[f'sma_{sma_media}']:.2f} 
+• SMA {sma_larga} días: ${stats[f'sma_{sma_larga}']:.2f}
 
 ANÁLISIS TÉCNICO:"""
     
     # Análisis de tendencia
     precio_actual = stats['precio_actual']
-    sma_252 = stats['sma_252']
-    sma_63 = stats['sma_63']
-    sma_21 = stats['sma_21']
+    sma_larga_val = stats[f'sma_{sma_larga}']
+    sma_media_val = stats[f'sma_{sma_media}']
+    sma_corta_val = stats[f'sma_{sma_corta}']
     
-    if precio_actual > sma_252:
+    if precio_actual > sma_larga_val:
         tendencia = "ALCISTA - El precio está por encima de la media móvil anual"
         tendencia_simbolo = "↗"
     else:
         tendencia = "BAJISTA - El precio está por debajo de la media móvil anual"
         tendencia_simbolo = "↘"
     
-    if sma_21 > sma_63 > sma_252:
+    if sma_corta_val > sma_media_val > sma_larga_val:
         momentum = "MOMENTUM POSITIVO - Todas las medias en orden ascendente"
         momentum_simbolo = "↑"
-    elif sma_21 < sma_63 < sma_252:
+    elif sma_corta_val < sma_media_val < sma_larga_val:
         momentum = "MOMENTUM NEGATIVO - Todas las medias en orden descendente"
         momentum_simbolo = "↓"
     else:
@@ -364,8 +483,8 @@ con las medias móviles indica la dirección predominante del activo.
 
 RECOMENDACIONES TÉCNICAS:
 
-• Soporte técnico estimado: ${min(sma_63, sma_252):.2f}
-• Resistencia técnica estimada: ${max(sma_21, precio_actual * 1.05):.2f}
+• Soporte técnico estimado: ${min(sma_media_val, sma_larga_val):.2f}
+• Resistencia técnica estimada: ${max(sma_corta_val, precio_actual * 1.05):.2f}
 • Nivel de riesgo: {vol_nivel}
 
 CONSIDERACIONES:
@@ -374,6 +493,20 @@ El análisis se basa en datos históricos y metodologías de análisis técnico
 reconocidas. Las condiciones del mercado pueden cambiar rápidamente y 
 requieren monitoreo constante."""
     
+    # Añadir información de indicadores técnicos si están activados
+    indicadores_texto = ""
+    if ACTIVAR_RSI and 'rsi_actual' in stats and pd.notna(stats['rsi_actual']):
+        indicadores_texto += f"\n• RSI ({RSI_PERIOD}d): {stats['rsi_actual']:.2f} (Sobrec.: >70, Sobrev.: <30)"
+    if ACTIVAR_MACD and 'macd_actual' in stats and pd.notna(stats['macd_actual']):
+        indicadores_texto += f"\n• MACD ({MACD_FAST_PERIOD},{MACD_SLOW_PERIOD},{MACD_SIGNAL_PERIOD}): MACD: {stats['macd_actual']:.2f}, Señal: {stats['macd_signal_actual']:.2f}"
+    if ACTIVAR_BBANDS and 'bb_upper_actual' in stats and pd.notna(stats['bb_upper_actual']):
+        indicadores_texto += f"\n• Bandas de Bollinger ({BBANDS_PERIOD}d): Superior: {stats['bb_upper_actual']:.2f}, Media: {stats['bb_middle_actual']:.2f}, Inferior: {stats['bb_lower_actual']:.2f}"
+    if ACTIVAR_VOLUMEN and 'volumen_promedio' in stats and pd.notna(stats['volumen_promedio']):
+        indicadores_texto += f"\n• Volumen Promedio: {stats['volumen_promedio']:.2f}"
+
+    if indicadores_texto:
+        analisis_texto += f"\n\nINDICADORES TÉCNICOS ADICIONALES:{indicadores_texto}"
+
     # Mostrar texto
     ax.text(0.05, 0.88, metricas_texto, 
             fontsize=10, ha='left', va='top',
@@ -386,36 +519,38 @@ requieren monitoreo constante."""
     
     # Espacio para pie de página
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.08)
+    plt.subplots_adjust(bottom=0.08) # Ajustado para acomodar el pie de página
     
-    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas)
+    agregar_pie_pagina_correcto(fig, numero_pagina, total_paginas, autor_nombre, autor_portfolio)
     
     return fig
 
 def procesar_activos():
     """Procesa todos los activos y genera análisis completo"""
-    configurar_matplotlib()
+    configurar_matplotlib(TEMA_GRAFICOS)
     
-    # Verificar si existen datos, si no, generarlos
-    if not os.path.exists(CARPETA_DATOS) or not os.listdir(CARPETA_DATOS):
-        generar_datos_prueba()
-    
-    # Crear directorio temporal para gráficos
+    # Asegurarse de que la carpeta de gráficos exista
     os.makedirs(CARPETA_GRAFICOS, exist_ok=True)
     
-    # Obtener archivos de datos
-    archivos = [f for f in os.listdir(CARPETA_DATOS) if f.endswith('.xlsx') or f.endswith('.xls')]
+    # --- CAMBIO CLAVE: Buscar solo archivos .csv y NO llamar a generar_datos_prueba ---
+    archivos = [f for f in os.listdir(CARPETA_DATOS) if f.endswith('.csv')]
     
     if not archivos:
-        print("No se encontraron archivos de datos. Generando datos de prueba...")
-        generar_datos_prueba()
-        archivos = [f for f in os.listdir(CARPETA_DATOS) if f.endswith('.xlsx') or f.endswith('.xls')]
+        print(f"ERROR: No se encontraron archivos CSV en la carpeta '{CARPETA_DATOS}'.")
+        print("Por favor, asegúrate de tener tus datos en formato .csv en esa carpeta.")
+        return {}, {} # Devuelve diccionarios vacíos para indicar que no hay datos para procesar.
     
-    tickers = [f.replace('.xlsx', '').replace('.xls', '') for f in archivos]
+    tickers = [f.replace('.csv', '') for f in archivos]
     print(f"Procesando {len(tickers)} activos: {', '.join(tickers)}")
     
     # Calcular total de páginas aproximado (portada + 4 páginas por activo)
-    total_paginas = 1 + (len(tickers) * 4)
+    # Se añaden 3 páginas más por activo si todos los indicadores están activados (RSI, MACD, Volumen)
+    paginas_por_activo = 4 # Precio, Comentario, Retornos, Histograma
+    if ACTIVAR_RSI: paginas_por_activo += 1
+    if ACTIVAR_MACD: paginas_por_activo += 1
+    if ACTIVAR_VOLUMEN: paginas_por_activo += 1
+
+    total_paginas = 1 + (len(tickers) * paginas_por_activo)
     pagina_actual = 1
     
     # Diccionarios para almacenar resultados
@@ -428,59 +563,149 @@ def procesar_activos():
     
     # Crear portada
     print("Creando portada del PDF...")
-    crear_portada_pdf(pdf, tickers)
+    crear_portada_pdf(pdf, tickers, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
     pagina_actual += 1
     
     # Procesar cada activo
     for archivo in archivos:
-        nombre = archivo.replace('.xlsx', '').replace('.xls', '')
+        nombre = archivo.replace('.csv', '') # Cambiado de .xlsx/.xls a .csv
         ruta = os.path.join(CARPETA_DATOS, archivo)
         
         print(f"Procesando {nombre}...")
         
         try:
-            df = pd.read_excel(ruta)
+            # Leer el CSV de forma más robusta
+            # La primera línea es el encabezado real, la segunda es 'Ticker', la tercera es 'Date,,,,,'.
+            # Los datos comienzan en la cuarta línea.
+            # Por lo tanto, saltamos las primeras 2 líneas (índice 0 y 1) y usamos la línea 0 (índice 0) como encabezado.
+            # La columna de fecha es la primera columna (índice 0).
+            df = pd.read_csv(ruta, skiprows=2, index_col=0, parse_dates=True)
             
-            # Procesar fechas
-            if 'Fecha' in df.columns:
-                df['Fecha'] = pd.to_datetime(df['Fecha'])
-                df.set_index('Fecha', inplace=True)
-            elif 'Date' in df.columns:
-                df['Date'] = pd.to_datetime(df['Date'])
-                df.set_index('Date', inplace=True)
-            else:
-                print(f"  {nombre}: No se encontró columna de fecha")
-                continue
+            # Asegurar el orden cronológico del índice
+            df.sort_index(inplace=True)
             
+            # Verificar si el índice es de tipo datetime. Si no, intentar convertir la primera columna a fecha.
+            if not pd.api.types.is_datetime64_any_dtype(df.index):
+                # Si el índice no es fecha, intentar con la primera columna de datos (que debería ser la fecha real)
+                # Esto es una solución robusta si el index_col=0 no funciona como se espera.
+                # Se asume que la primera columna después de saltar las filas es la fecha.
+                df.index = pd.to_datetime(df.index, errors='coerce')
+                df.dropna(subset=[df.index.name], inplace=True) # Eliminar filas con fechas inválidas
+                if df.empty:
+                    print(f"  {nombre}: El DataFrame quedó vacío después de intentar parsear fechas. Saltando este activo.")
+                    continue
+
             # Procesar precios
-            if 'Precio_Cierre' in df.columns:
-                df.rename(columns={'Precio_Cierre': 'Precio'}, inplace=True)
-            elif 'Adj Close' in df.columns:
+            # Priorizar 'Adj Close', luego 'Close', luego 'Price'
+            if 'Adj Close' in df.columns: 
                 df.rename(columns={'Adj Close': 'Precio'}, inplace=True)
             elif 'Close' in df.columns:
                 df.rename(columns={'Close': 'Precio'}, inplace=True)
-            elif 'Precio' in df.columns:
-                pass  # Ya tiene el nombre correcto
+            elif 'Price' in df.columns:
+                df.rename(columns={df.columns[0]: 'Precio'}, inplace=True) # Si la primera columna es el precio
             else:
-                print(f"  {nombre}: No se encontró columna de precio")
-                continue
+                # Si no se encuentra ninguna de las columnas esperadas, intentar con la primera columna de datos numérica
+                numeric_cols = df.select_dtypes(include=np.number).columns
+                if not numeric_cols.empty:
+                    df.rename(columns={numeric_cols[0]: 'Precio'}, inplace=True)
+                else:
+                    print(f"  {nombre}: No se encontró columna de precio adecuada. Columnas disponibles: {df.columns.tolist()}. Saltando este activo.")
+                    continue
             
+            # Convertir la columna de Precio a numérica y manejar errores
+            df['Precio'] = pd.to_numeric(df['Precio'], errors='coerce')
+            
+            # Manejo de errores: Eliminar filas con valores nulos en 'Precio' después de la conversión
+            if df['Precio'].isnull().all():
+                print(f"  {nombre}: La columna 'Precio' está completamente vacía o contiene solo valores no numéricos. Saltando este activo.")
+                continue
+            elif df['Precio'].isnull().any():
+                print(f"  {nombre}: Se encontraron valores nulos en la columna 'Precio'. Se eliminarán filas con NaN en 'Precio'.")
+                df.dropna(subset=['Precio'], inplace=True)
+            
+            # Asegurarse de que el DataFrame no esté vacío después de la limpieza
+            if df.empty:
+                print(f"  {nombre}: El DataFrame quedó vacío después de limpiar los precios. Saltando este activo.")
+                continue
+
             # Calcular indicadores técnicos
             df['Retorno'] = df['Precio'].pct_change()
             df['RetornoSemanal'] = df['Retorno'].rolling(window=5).mean()
-            df['SMA_21'] = df['Precio'].rolling(window=21).mean()
-            df['SMA_63'] = df['Precio'].rolling(window=63).mean()
-            df['SMA_252'] = df['Precio'].rolling(window=252).mean()
+            df[f'SMA_{SMA_CORTA}'] = df['Precio'].rolling(window=SMA_CORTA).mean()
+            df[f'SMA_{SMA_MEDIA}'] = df['Precio'].rolling(window=SMA_MEDIA).mean()
+            df[f'SMA_{SMA_LARGA}'] = df['Precio'].rolling(window=SMA_LARGA).mean()
             
-            # Calcular estadísticas
-            retorno_diario = df['Retorno'].mean()
-            retorno_semanal = df['Retorno'].rolling(5).mean().mean()
-            retorno_mensual = df['Retorno'].rolling(21).mean().mean()
-            retorno_anual = (1 + retorno_diario) ** 252 - 1
-            
-            vol_diaria = df['Retorno'].std()
-            vol_semanal = df['Retorno'].rolling(5).std().mean()
-            vol_mensual = df['Retorno'].rolling(21).std().mean()
+            # Cálculo de RSI
+            if ACTIVAR_RSI:
+                delta = df['Precio'].diff()
+                gain = delta.where(delta > 0, 0)
+                loss = (-delta).where(delta < 0, 0)
+                avg_gain = gain.ewm(com=RSI_PERIOD-1, min_periods=RSI_PERIOD).mean()
+                avg_loss = loss.ewm(com=RSI_PERIOD-1, min_periods=RSI_PERIOD).mean()
+                rs = avg_gain / avg_loss
+                df['RSI'] = 100 - (100 / (1 + rs))
+
+            # Cálculo de MACD
+            if ACTIVAR_MACD:
+                ema_fast = df['Precio'].ewm(span=MACD_FAST_PERIOD, adjust=False).mean()
+                ema_slow = df['Precio'].ewm(span=MACD_SLOW_PERIOD, adjust=False).mean()
+                df['MACD'] = ema_fast - ema_slow
+                df['MACD_Signal'] = df['MACD'].ewm(span=MACD_SIGNAL_PERIOD, adjust=False).mean()
+                df['MACD_Hist'] = df['MACD'] - df['MACD_Signal']
+
+            # Cálculo de Bandas de Bollinger
+            if ACTIVAR_BBANDS:
+                df['BB_Middle'] = df['Precio'].rolling(window=BBANDS_PERIOD).mean()
+                std_dev = df['Precio'].rolling(window=BBANDS_PERIOD).std()
+                df['BB_Upper'] = df['BB_Middle'] + (std_dev * BBANDS_DEV)
+                df['BB_Lower'] = df['BB_Middle'] - (std_dev * BBANDS_DEV)
+
+            # Manejo de Volumen
+            if ACTIVAR_VOLUMEN:
+                # Asegurarse de que la columna 'Volume' exista y sea numérica
+                if 'Volume' in df.columns:
+                    df['Volume'] = pd.to_numeric(df['Volume'], errors='coerce')
+                    df['Volume'].fillna(0, inplace=True) # Rellenar NaN de volumen con 0
+                else:
+                    print(f"  {nombre}: La columna 'Volume' no se encontró en el CSV. El análisis de volumen no se realizará para este activo.")
+                    # No desactivar ACTIVAR_VOLUMEN globalmente, solo para este activo si no tiene la columna
+
+            # Calcular estadísticas, asegurándose de manejar NaN que pueden surgir de las SMAs iniciales
+            # Usar .iloc[-1] solo si el dataframe no está vacío después de los calculos
+            if not df.empty:
+                retorno_diario = df['Retorno'].mean()
+                # Para evitar NaN en medias móviles si hay pocos datos al inicio del DF
+                retorno_semanal = df['Retorno'].rolling(5).mean().mean()
+                retorno_mensual = df['Retorno'].rolling(21).mean().mean()
+                
+                # Manejo de casos donde retorno_diario podría ser NaN si no hay suficientes datos
+                retorno_anual = (1 + retorno_diario) ** 252 - 1 if pd.notna(retorno_diario) else np.nan
+                
+                vol_diaria = df['Retorno'].std()
+                vol_semanal = df['Retorno'].rolling(5).std().mean()
+                vol_mensual = df['Retorno'].rolling(21).std().mean()
+                
+                precio_actual = df['Precio'].iloc[-1] if not df['Precio'].empty else np.nan
+                sma_corta_val = df[f'SMA_{SMA_CORTA}'].iloc[-1] if not df[f'SMA_{SMA_CORTA}'].empty else np.nan
+                sma_media_val = df[f'SMA_{SMA_MEDIA}'].iloc[-1] if not df[f'SMA_{SMA_MEDIA}'].empty else np.nan
+                sma_larga_val = df[f'SMA_{SMA_LARGA}'].iloc[-1] if not df[f'SMA_{SMA_LARGA}'].empty else np.nan
+
+                # Estadísticas de indicadores adicionales
+                rsi_actual = df['RSI'].iloc[-1] if ACTIVAR_RSI and 'RSI' in df.columns and not df['RSI'].empty else np.nan
+                macd_actual = df['MACD'].iloc[-1] if ACTIVAR_MACD and 'MACD' in df.columns and not df['MACD'].empty else np.nan
+                macd_signal_actual = df['MACD_Signal'].iloc[-1] if ACTIVAR_MACD and 'MACD_Signal' in df.columns and not df['MACD_Signal'].empty else np.nan
+                bb_upper_actual = df['BB_Upper'].iloc[-1] if ACTIVAR_BBANDS and 'BB_Upper' in df.columns and not df['BB_Upper'].empty else np.nan
+                bb_middle_actual = df['BB_Middle'].iloc[-1] if ACTIVAR_BBANDS and 'BB_Middle' in df.columns and not df['BB_Middle'].empty else np.nan
+                bb_lower_actual = df['BB_Lower'].iloc[-1] if ACTIVAR_BBANDS and 'BB_Lower' in df.columns and not df['BB_Lower'].empty else np.nan
+                volumen_promedio = df['Volume'].mean() if ACTIVAR_VOLUMEN and 'Volume' in df.columns and not df['Volume'].empty else np.nan
+
+            else: # Si el DF está vacío, todas las stats son NaN
+                retorno_diario, retorno_semanal, retorno_mensual, retorno_anual = np.nan, np.nan, np.nan, np.nan
+                vol_diaria, vol_semanal, vol_mensual = np.nan, np.nan, np.nan
+                precio_actual, sma_corta_val, sma_media_val, sma_larga_val = np.nan, np.nan, np.nan, np.nan
+                rsi_actual, macd_actual, macd_signal_actual = np.nan, np.nan, np.nan
+                bb_upper_actual, bb_middle_actual, bb_lower_actual = np.nan, np.nan, np.nan
+                volumen_promedio = np.nan
             
             stats = {
                 'retorno_diario_prom': retorno_diario,
@@ -490,10 +715,17 @@ def procesar_activos():
                 'volatilidad_diaria': vol_diaria,
                 'volatilidad_semanal': vol_semanal,
                 'volatilidad_mensual': vol_mensual,
-                'precio_actual': df['Precio'].iloc[-1],
-                'sma_21': df['SMA_21'].iloc[-1],
-                'sma_63': df['SMA_63'].iloc[-1],
-                'sma_252': df['SMA_252'].iloc[-1]
+                'precio_actual': precio_actual,
+                f'sma_{SMA_CORTA}': sma_corta_val,
+                f'sma_{SMA_MEDIA}': sma_media_val,
+                f'sma_{SMA_LARGA}': sma_larga_val,
+                'rsi_actual': rsi_actual,
+                'macd_actual': macd_actual,
+                'macd_signal_actual': macd_signal_actual,
+                'bb_upper_actual': bb_upper_actual,
+                'bb_middle_actual': bb_middle_actual,
+                'bb_lower_actual': bb_lower_actual,
+                'volumen_promedio': volumen_promedio
             }
             
             resultados[nombre] = stats
@@ -503,27 +735,51 @@ def procesar_activos():
             print(f"   Creando gráficos para {nombre}...")
             
             # Gráfico de precios
-            fig_precio = crear_grafico_precios(df, nombre, USAR_ESCALA_LOGARITMICA, pagina_actual, total_paginas)
+            fig_precio = crear_grafico_precios(df, nombre, ESCALA_PRECIOS, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO, SMA_CORTA, SMA_MEDIA, SMA_LARGA)
             fig_precio.savefig(f'{CARPETA_GRAFICOS}/{nombre}_precio.png', dpi=300, bbox_inches='tight')
             pdf.savefig(fig_precio, bbox_inches='tight', pad_inches=0.1)
             plt.close(fig_precio)
             pagina_actual += 1
             
+            # Gráfico de RSI
+            if ACTIVAR_RSI:
+                fig_rsi = crear_grafico_rsi(df, nombre, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
+                fig_rsi.savefig(f'{CARPETA_GRAFICOS}/{nombre}_rsi.png', dpi=300, bbox_inches='tight')
+                pdf.savefig(fig_rsi, bbox_inches='tight', pad_inches=0.1)
+                plt.close(fig_rsi)
+                pagina_actual += 1
+
+            # Gráfico de MACD
+            if ACTIVAR_MACD:
+                fig_macd = crear_grafico_macd(df, nombre, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
+                fig_macd.savefig(f'{CARPETA_GRAFICOS}/{nombre}_macd.png', dpi=300, bbox_inches='tight')
+                pdf.savefig(fig_macd, bbox_inches='tight', pad_inches=0.1)
+                plt.close(fig_macd)
+                pagina_actual += 1
+
+            # Gráfico de Volumen
+            if ACTIVAR_VOLUMEN:
+                fig_volumen = crear_grafico_volumen(df, nombre, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
+                fig_volumen.savefig(f'{CARPETA_GRAFICOS}/{nombre}_volumen.png', dpi=300, bbox_inches='tight')
+                pdf.savefig(fig_volumen, bbox_inches='tight', pad_inches=0.1)
+                plt.close(fig_volumen)
+                pagina_actual += 1
+
             # Comentario del activo
-            fig_comentario = crear_comentario_activo(nombre, stats, df, pagina_actual, total_paginas)
+            fig_comentario = crear_comentario_activo(nombre, stats, df, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO, SMA_CORTA, SMA_MEDIA, SMA_LARGA)
             pdf.savefig(fig_comentario, bbox_inches='tight', pad_inches=0.1)
             plt.close(fig_comentario)
             pagina_actual += 1
             
             # Gráfico de retornos
-            fig_retorno = crear_grafico_retornos(df, nombre, pagina_actual, total_paginas)
+            fig_retorno = crear_grafico_retornos(df, nombre, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
             fig_retorno.savefig(f'{CARPETA_GRAFICOS}/{nombre}_retorno.png', dpi=300, bbox_inches='tight')
             pdf.savefig(fig_retorno, bbox_inches='tight', pad_inches=0.1)
             plt.close(fig_retorno)
             pagina_actual += 1
             
             # Histograma
-            fig_hist = crear_histograma_retornos(df, nombre, pagina_actual, total_paginas)
+            fig_hist = crear_histograma_retornos(df, nombre, pagina_actual, total_paginas, AUTOR_NOMBRE, AUTOR_PORTFOLIO)
             fig_hist.savefig(f'{CARPETA_GRAFICOS}/{nombre}_histograma.png', dpi=300, bbox_inches='tight')
             pdf.savefig(fig_hist, bbox_inches='tight', pad_inches=0.1)
             plt.close(fig_hist)
@@ -545,141 +801,158 @@ def crear_excel_REALMENTE_corregido(resultados, dataframes):
     print("Creando archivo Excel con VERDADERA separación...")
     
     # Crear DataFrame de resumen
-    resumen = pd.DataFrame(resultados).T
+    # Filtrar resultados para incluir solo activos que fueron procesados correctamente
+    resultados_filtrados = {k: v for k, v in resultados.items() if pd.notna(v.get('retorno_anual'))}
+
+    if not resultados_filtrados:
+        print("No hay resultados válidos para crear la hoja de resumen en Excel.")
+        # Se crea un DataFrame vacío si no hay resultados válidos
+        resumen = pd.DataFrame() 
+    else:
+        resumen = pd.DataFrame(resultados_filtrados).T
     
-    # Crear gráfico comparativo primero
-    fig, ax = plt.subplots(figsize=(12, 8))
-    retornos_sorted = resumen['retorno_anual'].sort_values()
-    colors = ['#d32f2f' if x < 0 else '#388e3c' for x in retornos_sorted]
-    
-    bars = retornos_sorted.plot(kind='barh', ax=ax, color=colors, figsize=(12, 8))
-    ax.set_title('Comparación de Retornos Anuales Estimados', fontsize=16, weight='bold', color='#1a237e')
-    ax.set_xlabel('Retorno Anual Estimado (%)', fontsize=12)
-    ax.grid(True, alpha=0.3, axis='x')
-    
-    # Agregar valores en las barras
-    for i, v in enumerate(retornos_sorted):
-        ax.text(v + (0.005 if v >= 0 else -0.005), i, f'{v*100:.1f}%', 
-               va='center', ha='left' if v >= 0 else 'right', fontsize=10, weight='bold')
-    
-    # Agregar información del autor
-    ax.text(0.02, 0.98, f'Desarrollado por: {AUTOR_NOMBRE} | {AUTOR_PORTFOLIO}', 
-            transform=ax.transAxes, fontsize=10, va='top', style='italic', color='#666666')
-    
-    plt.tight_layout()
-    plt.savefig(f'{CARPETA_GRAFICOS}/resumen_retornos.png', dpi=300, bbox_inches='tight')
-    plt.close(fig)
-    
+    # Crear gráfico comparativo solo si hay datos válidos
+    if not resumen.empty:
+        fig, ax = plt.subplots(figsize=(12, 8))
+        retornos_sorted = resumen['retorno_anual'].sort_values()
+        colors = ['#d32f2f' if x < 0 else '#388e3c' for x in retornos_sorted]
+        
+        bars = retornos_sorted.plot(kind='barh', ax=ax, color=colors, figsize=(12, 8))
+        ax.set_title('Comparación de Retornos Anuales Estimados', fontsize=16, weight='bold', color='#1a237e')
+        ax.set_xlabel('Retorno Anual Estimado (%)', fontsize=12)
+        ax.grid(True, alpha=0.3, axis='x')
+        
+        # Agregar valores en las barras
+        for i, v in enumerate(retornos_sorted):
+            ax.text(v + (0.005 if v >= 0 else -0.005), i, f'{v*100:.1f}%', 
+                   va='center', ha='left' if v >= 0 else 'right', fontsize=10, weight='bold')
+        
+        # Agregar información del autor
+        ax.text(0.02, 0.98, f'Desarrollado por: {AUTOR_NOMBRE} | {AUTOR_PORTFOLIO}', 
+                transform=ax.transAxes, fontsize=10, va='top', style='italic', color='#666666')
+        
+        plt.tight_layout()
+        plt.savefig(f'{CARPETA_GRAFICOS}/resumen_retornos.png', dpi=300, bbox_inches='tight')
+        plt.close(fig)
+    else:
+        print("No se generó el gráfico de resumen de retornos debido a la falta de datos válidos.")
+        
     # Crear Excel
     with pd.ExcelWriter(ARCHIVO_EXCEL, engine='openpyxl') as writer:
-        # HOJA RESUMEN: Tabla MUCHO MÁS ABAJO para evitar superposición
-        resumen.to_excel(writer, sheet_name='Resumen', startrow=35)  # Fila 35 en lugar de 25
-        
-        # HOJAS INDIVIDUALES: Datos MUCHO MÁS ABAJO
+        # HOJA RESUMEN: Tabla MUCHO
+        if not resumen.empty:
+            resumen.to_excel(writer, sheet_name='Resumen General', index_label='Activo')
+            workbook = writer.book
+            sheet = writer.sheets['Resumen General']
+            
+            # Formato de celdas
+            for col in sheet.columns:
+                max_length = 0
+                column = col[0].column_letter # Get the column name
+                for cell in sheet[column]:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except TypeError: # Handle non-string types
+                        pass
+                adjusted_width = (max_length + 2) * 1.2
+                sheet.column_dimensions[column].width = adjusted_width
+            
+            # Aplicar formato a la cabecera
+            header_font = Font(bold=True, color="FFFFFF")
+            header_fill = PatternFill(start_color="1A237E", end_color="1A237E", fill_type="solid")
+            header_alignment = Alignment(horizontal="center", vertical="center")
+            
+            for cell in sheet["1:1"]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+            
+            # Insertar imagen de resumen si existe
+            if os.path.exists(f'{CARPETA_GRAFICOS}/resumen_retornos.png'):
+                img = Image(f'{CARPETA_GRAFICOS}/resumen_retornos.png')
+                # Ajustar tamaño de la imagen para que no sea demasiado grande
+                img.width = img.width * 0.75 # Reducir al 75%
+                img.height = img.height * 0.75 # Reducir al 75%
+                
+                # Calcular la fila de inicio para la imagen, dejando espacio después de la tabla
+                start_row_img = sheet.max_row + 2 # 2 filas de espacio
+                sheet.add_image(img, f'A{start_row_img}')
+                print("   Gráfico de resumen de retornos insertado en Excel.")
+            else:
+                print("   No se encontró el gráfico de resumen de retornos para insertar en Excel.")
+
+        # HOJAS INDIVIDUALES POR ACTIVO
         for nombre, df in dataframes.items():
-            print(f"   Creando hoja para {nombre}...")
-            # Datos empiezan en fila 80 (antes era 60) para evitar superposición
-            df.to_excel(writer, sheet_name=nombre, startrow=80)
-    
-    # Cargar el workbook para agregar imágenes
-    workbook = load_workbook(ARCHIVO_EXCEL)
-    
-    # HOJA DE RESUMEN: imagen arriba, tabla MUCHO más abajo
-    ws_resumen = workbook['Resumen']
-    
-    # Títulos de la hoja de resumen
-    ws_resumen['A1'] = 'ANÁLISIS FINANCIERO'
-    ws_resumen['A1'].font = Font(size=16, bold=True, color='1a237e')
-    ws_resumen['A2'] = f'Desarrollado por: {AUTOR_NOMBRE}'
-    ws_resumen['A2'].font = Font(size=12, italic=True)
-    ws_resumen['A3'] = f'Portfolio: {AUTOR_PORTFOLIO}'
-    ws_resumen['A3'].font = Font(size=12, italic=True, color='666666')
-    
-    # Imagen de resumen (arriba, tabla en fila 35)
-    img_resumen = Image(f'{CARPETA_GRAFICOS}/resumen_retornos.png')
-    img_resumen.width = 900
-    img_resumen.height = 600
-    ws_resumen.add_image(img_resumen, 'A5')  # Imagen en A5, tabla en fila 35
-    
-    # HOJAS INDIVIDUALES: Gráficos arriba, datos en fila 80
-    for nombre, df in dataframes.items():
-        ws = workbook[nombre]
-        
-        # Título de la hoja
-        ws['A1'] = f'ANÁLISIS DE {nombre}'
-        ws['A1'].font = Font(size=14, bold=True, color='1a237e')
-        ws['A2'] = f'{AUTOR_PORTFOLIO}'
-        ws['A2'].font = Font(size=10, italic=True, color='666666')
-        
-        # Separación clara: gráficos de la fila 4 a 75, datos desde fila 80
-        row_inicio_graficos = 4
-        
-        # Gráfico de precios
-        if os.path.exists(f'{CARPETA_GRAFICOS}/{nombre}_precio.png'):
-            img_precio = Image(f'{CARPETA_GRAFICOS}/{nombre}_precio.png')
-            img_precio.width = 700
-            img_precio.height = 300
-            ws.add_image(img_precio, f'A{row_inicio_graficos}')
-        
-        # Gráfico de retornos (debajo del anterior)
-        if os.path.exists(f'{CARPETA_GRAFICOS}/{nombre}_retorno.png'):
-            img_retorno = Image(f'{CARPETA_GRAFICOS}/{nombre}_retorno.png')
-            img_retorno.width = 700
-            img_retorno.height = 250
-            ws.add_image(img_retorno, f'A{row_inicio_graficos + 20}')
-        
-        # Histograma (más abajo)
-        if os.path.exists(f'{CARPETA_GRAFICOS}/{nombre}_histograma.png'):
-            img_hist = Image(f'{CARPETA_GRAFICOS}/{nombre}_histograma.png')
-            img_hist.width = 600
-            img_hist.height = 300
-            ws.add_image(img_hist, f'A{row_inicio_graficos + 40}')
-    
-    workbook.save(ARCHIVO_EXCEL)
+            if not df.empty:
+                # Crear una nueva hoja para cada activo
+                df.to_excel(writer, sheet_name=nombre, index=True, index_label='Fecha')
+                sheet = writer.sheets[nombre]
+                
+                # Formato de celdas
+                for col in sheet.columns:
+                    max_length = 0
+                    column = col[0].column_letter # Get the column name
+                    for cell in sheet[column]:
+                        try:
+                            if len(str(cell.value)) > max_length:
+                                max_length = len(str(cell.value))
+                        except TypeError:
+                            pass
+                    adjusted_width = (max_length + 2) * 1.2
+                    sheet.column_dimensions[column].width = adjusted_width
+                
+                # Aplicar formato a la cabecera
+                for cell in sheet["1:1"]:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_alignment
+                
+                # Insertar imágenes de gráficos para cada activo
+                # Calcular la fila de inicio para las imágenes, dejando espacio después de la tabla
+                start_row_img = sheet.max_row + 2 # 2 filas de espacio
+                
+                # Lista de gráficos a insertar y sus nombres de archivo
+                graficos_activo = [
+                    (f'{CARPETA_GRAFICOS}/{nombre}_precio.png', 'A'),
+                    (f'{CARPETA_GRAFICOS}/{nombre}_retorno.png', 'A'), # Se ajustará la fila
+                    (f'{CARPETA_GRAFICOS}/{nombre}_histograma.png', 'A') # Se ajustará la fila
+                ]
+                
+                # Añadir gráficos de indicadores si están activados
+                if ACTIVAR_RSI: graficos_activo.append((f'{CARPETA_GRAFICOS}/{nombre}_rsi.png', 'A'))
+                if ACTIVAR_MACD: graficos_activo.append((f'{CARPETA_GRAFICOS}/{nombre}_macd.png', 'A'))
+                if ACTIVAR_VOLUMEN: graficos_activo.append((f'{CARPETA_GRAFICOS}/{nombre}_volumen.png', 'A'))
+
+                current_row = start_row_img
+                for img_path, col_letter in graficos_activo:
+                    if os.path.exists(img_path):
+                        img = Image(img_path)
+                        img.width = img.width * 0.75 # Reducir al 75%
+                        img.height = img.height * 0.75 # Reducir al 75%
+                        sheet.add_image(img, f'{col_letter}{current_row}')
+                        current_row += int(img.height / 15) + 2 # Aproximadamente 15 pixels por fila, más 2 de espacio
+                        print(f"   Gráfico {os.path.basename(img_path)} insertado en hoja {nombre}.")
+                    else:
+                        print(f"   No se encontró el gráfico {os.path.basename(img_path)} para insertar en hoja {nombre}.")
+            else:
+                print(f"No se creó la hoja para {nombre} en Excel porque el DataFrame estaba vacío.")
+
     print(f"Excel guardado como: {ARCHIVO_EXCEL}")
 
-def main():
-    """Función principal"""
-    print("="*60)
-    print("ANÁLISIS FINANCIERO FINAL - TODOS LOS PROBLEMAS CORREGIDOS")
-    print(f"Desarrollado por: {AUTOR_NOMBRE}")
-    print(f"Portfolio: {AUTOR_PORTFOLIO}")
-    print("="*60)
-    print(f"Configuración:")
-    print(f"   • Escala de gráficos: {'Logarítmica' if USAR_ESCALA_LOGARITMICA else 'Linear'}")
-    print(f"   • Carpeta de datos: {CARPETA_DATOS}")
-    print(f"   • Archivo PDF: {ARCHIVO_PDF}")
-    print(f"   • Archivo Excel: {ARCHIVO_EXCEL}")
-    print("="*60)
-    
-    try:
-        # Procesar activos
-        resultados, dataframes = procesar_activos()
-        
-        if not resultados:
-            print("No se pudieron procesar activos")
-            return
-        
-        # Crear Excel REALMENTE corregido
-        crear_excel_REALMENTE_corregido(resultados, dataframes)
-        
-        # Limpiar archivos temporales
-       # if os.path.exists(CARPETA_GRAFICOS):
-        #    shutil.rmtree(CARPETA_GRAFICOS)
-        
-        print("\n" + "="*60)
-        print("ANÁLISIS FINAL COMPLETADO - TODOS LOS PROBLEMAS SOLUCIONADOS")
-        print("="*60)
-        print(f"Archivos generados:")
-        print(f"   • {ARCHIVO_PDF} (A4 perfecto, SIN superposición de pie de página)")
-        print(f"   • {ARCHIVO_EXCEL} (imágenes REALMENTE separadas de datos)")
-        print(f"Activos procesados: {len(resultados)}")
-        print(f"Desarrollado por: {AUTOR_NOMBRE} | {AUTOR_PORTFOLIO}")
-        print("="*60)
-        
-    except Exception as e:
-        print(f"Error en el análisis: {str(e)}")
-        raise
+    # Limpiar archivos de gráficos temporales
+    print("Limpieza completada.")
 
+# ========================= EJECUCIÓN PRINCIPAL =========================
 if __name__ == "__main__":
-    main()
+    # No se llama a generar_datos_prueba() aquí.
+    # Se espera que los archivos CSV ya existan en CARPETA_DATOS.
+    
+    resultados_analisis, dataframes_analisis = procesar_activos()
+    
+    if resultados_analisis and dataframes_analisis:
+        crear_excel_REALMENTE_corregido(resultados_analisis, dataframes_analisis)
+    else:
+        print("No se pudieron procesar los activos. No se generará el archivo Excel.")
+
+

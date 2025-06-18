@@ -24,30 +24,16 @@ for archivo in os.listdir(CARPETA_DATOS):
     nombre = os.path.splitext(archivo)[0]
     try:
         if archivo.endswith('.csv'):
-            # Leer el CSV, saltando las filas 1 y 2 (índice 0 y 1) y usando la fila 0 (la que contiene 'Price', 'Close', etc.) como encabezado
-            # La columna de fecha es la primera columna (índice 0) y se parsea como fecha
-            df = pd.read_csv(ruta, skiprows=[1, 2], header=0, index_col=0, parse_dates=True)
+            df = pd.read_csv(ruta, index_col=0, parse_dates=True, date_parser=lambda x: pd.to_datetime(x, format="%Y-%m-%d", errors='coerce'))
         elif archivo.endswith('.xlsx') or archivo.endswith('.xls'):
             df = pd.read_excel(ruta, index_col=0, parse_dates=True)
         else:
             continue
-        
-        # Se busca la columna 'Close' o 'Price' (en ese orden de preferencia)
-        columnas = [col for col in df.columns if col.lower() == 'close']
-        if not columnas:
-            columnas = [col for col in df.columns if col.lower() == 'price']
-        if not columnas:
-            columnas = [col for col in df.columns if col.lower() in ['adj close', 'precio_cierre']]
-
+        columnas = [col for col in df.columns if col.lower() in ['adj close', 'close', 'precio_cierre']]
         if not columnas:
             continue
-
         df_filtrado = df[[columnas[0]]].rename(columns={columnas[0]: nombre})
-        df_filtrado[nombre] = pd.to_numeric(df_filtrado[nombre], errors='coerce') # Convertir a numérico, forzando NaN en errores
-        df_filtrado = df_filtrado.dropna() # Eliminar filas con NaN después de la conversión
-        if not df_filtrado.empty:
-            dataframes[nombre] = df_filtrado
-
+        dataframes[nombre] = df_filtrado
     except Exception as e:
         print(f"⚠️ Error con {archivo}: {e}")
 
@@ -273,23 +259,24 @@ if sector_correlations:
     print(f"✅ Imagen generada: {sector_img_path}")
 
 # ==== IMAGEN DE INSIGHTS AUTOMÁTICOS ====
-insights_img_paths = [] # Initialize here
+
 if len(insights) > 0:
-    chunk_size = 30  # máximo de líneas por imagen
-    for chunk_index, start in enumerate(range(0, len(insights), chunk_size)):
-        chunk = insights[start:start + chunk_size]
-        fig, ax = plt.subplots(figsize=(10, max(2, len(chunk)*0.4)))
-        ax.axis('off')
-        y_start = 1
-        for i, line in enumerate(chunk):
-            ax.text(0, y_start - i*0.09, "- " + line, fontsize=11, ha='left', va='top', wrap=True)
-        plt.title(f"Insights automáticos (parte {chunk_index + 1})", fontsize=14, weight='bold', pad=18)
-        chunk_path = os.path.join(CARPETA_SALIDA, f'insights_img_{chunk_index + 1}.png')
-        plt.savefig(chunk_path, bbox_inches='tight')
-        plt.close()
-        insights_img_paths.append(chunk_path)
-        plt.close()
-        print(f"✅ Imagen generada: {chunk_path}")
+    insights_img_paths = []
+chunk_size = 30  # máximo de líneas por imagen
+for chunk_index, start in enumerate(range(0, len(insights), chunk_size)):
+    chunk = insights[start:start + chunk_size]
+    fig, ax = plt.subplots(figsize=(10, max(2, len(chunk)*0.4)))
+    ax.axis('off')
+    y_start = 1
+    for i, line in enumerate(chunk):
+        ax.text(0, y_start - i*0.09, "- " + line, fontsize=11, ha='left', va='top', wrap=True)
+    plt.title(f"Insights automáticos (parte {chunk_index + 1})", fontsize=14, weight='bold', pad=18)
+    chunk_path = os.path.join(CARPETA_SALIDA, f'insights_img_{chunk_index + 1}.png')
+    plt.savefig(chunk_path, bbox_inches='tight')
+    plt.close()
+    insights_img_paths.append(chunk_path)
+    plt.close()
+    print(f"✅ Imagen generada: {chunk_path}")
 
 # ==== INICIO BLOQUE PDF ====
 # ==== PDF PROFESIONAL COMPLETO ====
@@ -402,34 +389,78 @@ if pca_ok and os.path.exists(pca_path):
 
 # --------- Insights automáticos (texto mejorado) ---------
 pdf.add_page()
-pdf.set_font("helvetica", 'B', 14)
-pdf.cell(0, 10, "Insights Cuantitativos sobre Correlaciones")
-pdf.ln(8)
-for path in insights_img_paths:
-    if os.path.exists(path):
-        pdf.image(path, x=15, w=180)
-        pdf.ln(5)
+pdf.set_font("helvetica", 'B', 15)
+pdf.cell(0, 12, "Insights automáticos", ln=True)
+pdf.set_font("helvetica", '', 11)
+pdf.set_text_color(80, 80, 80)
+pdf.multi_cell(0, 8,
+    "A continuación se listan relaciones clave detectadas en la matriz de correlaciones. "
+    "Estas frases resumen pares de activos que se mueven juntos (alta correlación) o en sentido opuesto (baja o negativa), lo que sirve para diversificación o cobertura.\n"
+)
+pdf.set_text_color(0, 0, 0)
+pdf.ln(2)
+if insights:
+    for line in insights:
+        pdf.multi_cell(0, 7, "- " + line)
+    pdf.ln(3)
+else:
+    pdf.multi_cell(0, 7, "No se detectaron correlaciones destacadas.")
 
-# --------- Clasificación por sector ---------
+# --------- Insights automáticos (imagen visual) ---------
+for img_path in insights_img_paths:
+    if os.path.exists(img_path):
+        pdf.add_page()
+        pdf.set_font("helvetica", 'B', 14)
+        pdf.cell(0, 10, "Insights automáticos (visual)", ln=True)
+        pdf.image(img_path, x=10, w=190)
+    pdf.ln(8)
+    pdf.set_font("helvetica", '', 10)
+    pdf.set_text_color(90, 90, 90)
+    pdf.multi_cell(0, 8, "Visualización compacta de los principales hallazgos automáticos. Cada línea destaca oportunidades de cobertura, concentración o diversificación.")
+    pdf.set_text_color(0, 0, 0)
+
+# --------- Promedio de correlación intra-sectorial (texto mejorado) ---------
+if tabla_sector and any(s for s in sector_correlations):
+    pdf.add_page()
+    pdf.set_font("helvetica", 'B', 14)
+    pdf.cell(0, 10, "Promedio de correlación intra-sectorial", ln=True)
+    pdf.set_font("helvetica", '', 11)
+    pdf.set_text_color(80, 80, 80)
+    pdf.multi_cell(0, 8,
+        "El siguiente cuadro muestra el promedio de correlación entre activos de cada sector económico. "
+        "Sectores con valores altos suelen comportarse de manera similar internamente, lo que impacta la diversificación."
+    )
+    pdf.set_text_color(0, 0, 0)
+    for linea in tabla_sector.splitlines():
+        pdf.multi_cell(0, 8, linea)
+    pdf.ln(2)
+
+# --------- Promedio de correlación intra-sectorial (imagen tabla) ---------
 if sector_img_path and os.path.exists(sector_img_path):
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 14)
-    pdf.cell(0, 10, "Correlación por Sector")
+    pdf.cell(0, 10, "Promedio de correlación intra-sectorial (tabla)", ln=True)
+    pdf.image(sector_img_path, x=30, w=150)
     pdf.ln(8)
-    pdf.image(sector_img_path, x=15, w=180)
-    pdf.ln(5)
     pdf.set_font("helvetica", '', 10)
-    pdf.multi_cell(180, 7,
-        "¿Qué muestra?\n"
-        "Este gráfico resume la correlación promedio dentro de cada sector, "
-        "lo que es útil para entender la cohesión de los activos dentro de una misma industria."
-    )
+    pdf.set_text_color(90, 90, 90)
+    pdf.multi_cell(0, 8, "Tabla visual con los promedios por sector. Si todos los valores son altos, considerá ampliar la diversificación a sectores menos correlacionados.")
+    pdf.set_text_color(0, 0, 0)
 
-# Final del PDF
-try:
-    pdf.output(pdf_path)
-    print(f"✅ PDF profesional generado en: {pdf_path}")
-except Exception as e:
-    print(f"❌ Error al generar el PDF: {e}")
+# --------- Footer ---------
+pdf.add_page()
+pdf.set_font("helvetica", 'I', 10)
+pdf.multi_cell(180, 8, f"""
+Este informe fue generado automáticamente.
+Utiliza herramientas cuantitativas para facilitar la toma de decisiones sobre diversificación y gestión de riesgos.
+Para consultas, contactá a Leonardo Caliva.
+""")
 
+pdf.output(pdf_path)
+print(f"\n📄 PDF profesional generado en: {pdf_path}")
 
+print(f"\n✅ Matriz de correlación generada correctamente:")
+print(f"- 📄 Excel: {excel_path}")
+print(f"- 🗾️ Imagen: {img_path}")
+print(f"- 📄 PDF: {pdf_path}")
+print(f"- Insights: {insight_file}")

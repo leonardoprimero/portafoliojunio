@@ -24,29 +24,18 @@ for archivo in os.listdir(CARPETA_DATOS):
 
     try:
         if archivo.endswith('.csv'):
-            # Leer el CSV, saltando las filas 1 y 2 (índice 0 y 1) y usando la fila 0 (la que contiene 'Price', 'Close', etc.) como encabezado
-            # La columna de fecha es la primera columna (índice 0) y se parsea como fecha
-            df = pd.read_csv(ruta, skiprows=[1, 2], header=0, index_col=0, parse_dates=True)
+            df = pd.read_csv(ruta, index_col=0, parse_dates=True)
         elif archivo.endswith('.xlsx') or archivo.endswith('.xls'):
             df = pd.read_excel(ruta, index_col=0, parse_dates=True)
         else:
             continue
 
-        # Se busca la columna 'Close' o 'Price' (en ese orden de preferencia)
-        columnas = [col for col in df.columns if col.lower() == 'close']
-        if not columnas:
-            columnas = [col for col in df.columns if col.lower() == 'price']
-        if not columnas:
-            columnas = [col for col in df.columns if col.lower() in ['adj close', 'precio_cierre']]
-
+        columnas = [col for col in df.columns if col.lower() in ['adj close', 'close', 'precio_cierre']]
         if not columnas:
             continue
 
         df_filtrado = df[[columnas[0]]].rename(columns={columnas[0]: nombre})
-        df_filtrado[nombre] = pd.to_numeric(df_filtrado[nombre], errors='coerce') # Convertir a numérico, forzando NaN en errores
-        df_filtrado = df_filtrado.dropna() # Eliminar filas con NaN después de la conversión
-        if not df_filtrado.empty:
-            dataframes[nombre] = df_filtrado
+        dataframes[nombre] = df_filtrado
 
     except Exception as e:
         print(f"⚠️ Error con {archivo}: {e}")
@@ -303,24 +292,24 @@ if tabla_sector:
 if rupturas:
     pdf.add_page()
     pdf.set_font("helvetica", 'B', 14)
-pdf.cell(0, 10, "Rupturas de Correlación (últimos 6m vs anteriores)", ln=True)
-pdf.set_font("helvetica", '', 11)
-explicacion = (
-    "A continuación se presentan los pares de activos cuya correlación cambió significativamente "
-    "en los últimos 6 meses en comparación con los 6 meses anteriores. "
-    "Un aumento en la correlación indica que los activos se están moviendo más en conjunto, "
-    "mientras que una disminución sugiere que ahora tienen comportamientos más independientes.\n\n"
-    "Esto puede ser útil para detectar cambios estructurales en el mercado, oportunidades de cobertura o ajuste en estrategias de diversificación."
-)
-pdf.multi_cell(0, 8, explicacion)
-pdf.ln(4)
+    pdf.cell(0, 10, "Rupturas de Correlación (últimos 6m vs anteriores)", ln=True)
+    pdf.set_font("helvetica", '', 11)
+    explicacion = (
+        "A continuación se presentan los pares de activos cuya correlación cambió significativamente "
+        "en los últimos 6 meses en comparación con los 6 meses anteriores. "
+        "Un aumento en la correlación indica que los activos se están moviendo más en conjunto, "
+        "mientras que una disminución sugiere que ahora tienen comportamientos más independientes.\n\n"
+        "Esto puede ser útil para detectar cambios estructurales en el mercado, oportunidades de cobertura o ajuste en estrategias de diversificación."
+    )
+    pdf.multi_cell(0, 8, explicacion)
+    pdf.ln(4)
 
-if os.path.exists(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png")):
-    pdf.image(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png"), x=15, w=180)
-    pdf.ln(10)
+    if os.path.exists(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png")):
+        pdf.image(os.path.join(CARPETA_SALIDA, "grafico_rupturas.png"), x=15, w=180)
+        pdf.ln(10)
 
-for r in rupturas:
-    pdf.multi_cell(0, 8, r)
+    for r in rupturas:
+        pdf.multi_cell(0, 8, r)
 
 
 try:
@@ -328,7 +317,3 @@ try:
     print(f"\n📄 PDF profesional generado en: {pdf_path}")
 except Exception as e:
     print(f"❌ Error al generar el PDF: {e}")
-
-
-
-
