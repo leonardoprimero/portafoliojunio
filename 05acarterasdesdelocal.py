@@ -28,14 +28,14 @@ plt.rcParams["axes.unicode_minus"] = False
 warnings.filterwarnings('ignore')
 
 # --- CONFIGURACIÓN DE FUENTE DE DATOS ---
-FUENTE_DATOS = "web"  # "web" o "local"
+FUENTE_DATOS = "local"  # "web" o "local"
 
 if FUENTE_DATOS == "web":
     TICKERS = ["AAPL", "MSFT", "GOOGL", "AMZN", "SPY"]
     FECHA_INICIO = "2020-01-01"
     FECHA_FIN = "2024-12-31"
 else:
-    CARPETA_LOCALES = "./carpeta_datos_locales"  # carpeta con CSVs o Excels
+    CARPETA_LOCALES = "./datospython1"  # carpeta con CSVs o Excels
 
 # --- CONFIGURACIÓN GLOBAL ---
 CARPETA_SALIDA = "DatosCartera"
@@ -67,25 +67,39 @@ if FUENTE_DATOS == "web":
 elif FUENTE_DATOS == "local":
     import os
     import pandas as pd
-
+    dataframes = {} # Inicializar el diccionario aquí
     for archivo in os.listdir(CARPETA_LOCALES):
-        if archivo.endswith((".csv", ".xlsx", ".xls")):
-            ruta = os.path.join(CARPETA_LOCALES, archivo)
-            nombre = os.path.splitext(archivo)[0].upper()
-            try:
-                if archivo.endswith(".csv"):
-                    df = pd.read_csv(ruta, index_col=0, parse_dates=True)
-                else:
-                    df = pd.read_excel(ruta, index_col=0, parse_dates=True)
+        nombre_sin_ext = os.path.splitext(archivo)[0]
 
-                if 'Adj Close' in df.columns:
-                    df = df[['Adj Close']].rename(columns={'Adj Close': nombre})
-                else:
-                    df = df[['Close']].rename(columns={'Close': nombre})
+        # Filtrar por nombre de archivo (solo mayúsculas)
+        if not nombre_sin_ext.isupper():
+            continue
 
-                dataframes[nombre] = df
-            except Exception as e:
-                print(f"❌ Error leyendo {archivo}: {e}")
+        # Filtrar por extensión
+        if not archivo.lower().endswith((".csv", ".xlsx", ".xls")):
+            continue
+
+        ruta = os.path.join(CARPETA_LOCALES, archivo)
+        try:
+            if archivo.lower().endswith(".csv"):
+                df = pd.read_csv(ruta, index_col=0, parse_dates=True)
+                col_match = [col for col in df.columns if 'close' in col.lower()]
+                if col_match:
+                    df = df[[col_match[0]]].rename(columns={col_match[0]: nombre_sin_ext})
+                    dataframes[nombre_sin_ext] = df
+                    print(f"✅ Cargado CSV: {archivo} usando columna '{col_match[0]}'")
+                else:
+                    print(f"⚠️ Archivo CSV {archivo} no tiene columna que contenga 'close'. Saltando.")
+            elif archivo.lower().endswith((".xlsx", ".xls")):
+                df = pd.read_excel(ruta, sheet_name='Precios_Cierre', index_col='Fecha', parse_dates=True)
+                if 'Precio_Cierre' in df.columns:
+                    df = df[['Precio_Cierre']].rename(columns={'Precio_Cierre': nombre_sin_ext})
+                    dataframes[nombre_sin_ext] = df
+                    print(f"✅ Cargado Excel: {archivo} usando columna 'Precio_Cierre'")
+                else:
+                    print(f"⚠️ Archivo Excel {archivo} no tiene columna 'Precio_Cierre' en la hoja 'Precios_Cierre'. Saltando.")
+        except Exception as e:
+            print(f"❌ Error leyendo {archivo}: {e}")
 
 def calcular_beta(activo, benchmark, retornos_combinados):
     """
@@ -501,27 +515,61 @@ class PDFMejorado(FPDF):
 
 
 if __name__ == "__main__":
-    # Configuración de activos y fechas
-    activos_cartera = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM"]
-    fecha_inicio_analisis = "2020-01-01"
-    fecha_fin_analisis = "2024-12-31"
-    benchmark_elegido = BENCHMARK_DEFAULT
+    # Las siguientes variables se definirán dinámicamente a partir de los datos cargados
+    # activos_cartera = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM"]
+    # fecha_inicio_analisis = "2020-01-01"
+    # fecha_fin_analisis = "2024-12-31"
+    # benchmark_elegido = BENCHMARK_DEFAULT # Ya está definido globalmente
 
     print("🚀 Iniciando análisis cuantitativo completo de carteras...")
-    
-    # Cargar o descargar datos
-    df_precios = cargar_datos_locales(activos_cartera, benchmark_elegido)
-    if df_precios is None or df_precios.empty:
-        df_precios = descargar_datos(activos_cartera, fecha_inicio_analisis, fecha_fin_analisis, benchmark_elegido)
-    
-    if df_precios.empty:
-        print("❌ No se pudieron obtener datos para el análisis. Saliendo.")
+
+    if not dataframes:
+        print("❌ No se cargaron datos en el diccionario 'dataframes'. Compruebe la configuración de FUENTE_DATOS y la carpeta de datos locales. Saliendo.")
         exit()
 
-    print(f"\n📊 Datos de precios cargados correctamente")
-    print(f"Período: {df_precios.index[0]} a {df_precios.index[-1]}")
-    print(f"Activos: {list(df_precios.columns)}")
+    # Consolidar todos los dataframes individuales en df_precios
+    # Los dataframes en el diccionario ya deben tener el índice de Fecha y una columna con el nombre del ticker.
+    df_list = []
+    for ticker, df_ticker in dataframes.items():
+        # Asegurarse de que el nombre de la columna sea el ticker, incluso si ya lo es.
+        # Esto es importante si el df_ticker ya tiene el nombre correcto pero queremos estar seguros.
+        if df_ticker.columns[0] != ticker:
+             df_list.append(df_ticker.rename(columns={df_ticker.columns[0]: ticker}))
+        else:
+             df_list.append(df_ticker)
     
+    if not df_list:
+        print("❌ No hay DataFrames válidos para concatenar. Saliendo.")
+        exit()
+
+    df_precios = pd.concat(df_list, axis=1, join='outer')
+    
+    # Asegurar que el índice es DateTimeIndex después de la concatenación
+    df_precios.index = pd.to_datetime(df_precios.index)
+    df_precios = df_precios.sort_index() # Ordenar por fecha
+
+    activos_cartera = [col for col in df_precios.columns if col != BENCHMARK_DEFAULT] # Excluir benchmark de la lista de activos a analizar si ya está como columna
+    
+    # Si el benchmark no está en las columnas de df_precios (porque no se cargó como un ticker normal)
+    # y FUENTE_DATOS es 'web', yfinance lo descarga por separado.
+    # Para 'local', el benchmark DEBE estar como uno de los archivos.
+    # La lógica actual de separación de benchmark ya maneja si está o no en df_precios.columns.
+    benchmark_elegido = BENCHMARK_DEFAULT
+
+    if benchmark_elegido not in df_precios.columns:
+        print(f"⚠️ El benchmark por defecto '{benchmark_elegido}' no se encontró entre los datos cargados. Algunas métricas como Beta no se calcularán o el script podría fallar si el benchmark es esencial más adelante.")
+        # Considerar si se debe añadir el benchmark si no está, o si el resto del script lo maneja.
+        # La lógica existente parece separar el benchmark si está presente, y si no, df_benchmark será None.
+
+    fecha_inicio_analisis = df_precios.index.min().strftime('%Y-%m-%d')
+    fecha_fin_analisis = df_precios.index.max().strftime('%Y-%m-%d')
+    
+    # Continuación de la lógica original, df_precios ya está listo.
+    print(f"\n📊 Datos de precios consolidados correctamente")
+    print(f"Período: {fecha_inicio_analisis} a {fecha_fin_analisis}")
+    print(f"Activos (excluyendo benchmark si es columna): {activos_cartera}")
+    print(f"Todos los tickers cargados (incluyendo benchmark si es columna): {list(df_precios.columns)}")
+
     # Separar benchmark
     if benchmark_elegido in df_precios.columns:
         df_benchmark = df_precios[[benchmark_elegido]].copy()

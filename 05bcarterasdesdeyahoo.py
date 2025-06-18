@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
+import yfinance as yf
 import pandas as pd
 import numpy as np
 import os
@@ -31,7 +31,6 @@ warnings.filterwarnings('ignore')
 CARPETA_SALIDA = "DatosCartera"
 CARPETA_GRAFICOS_TEMP = os.path.join(CARPETA_SALIDA, "temp_graficos")
 CARPETA_DATOS_CACHE = os.path.join(CARPETA_SALIDA, "data_cache")
-CARPETA_LOCALES = "./datospython1"
 BENCHMARK_DEFAULT = "SPY"
 
 # Asegurar que las carpetas existan
@@ -40,9 +39,71 @@ os.makedirs(CARPETA_GRAFICOS_TEMP, exist_ok=True)
 os.makedirs(CARPETA_DATOS_CACHE, exist_ok=True)
 
 # --- FUNCIONES DE UTILIDAD ---
+def descargar_datos(tickers, start_date, end_date, benchmark=None):
+    """
+    Descarga datos históricos de precios de Yahoo Finance.
+    """
+    todos_tickers = list(tickers)
+    if benchmark and benchmark not in todos_tickers:
+        todos_tickers.append(benchmark)
 
+    print(f"Descargando datos para: {todos_tickers} desde {start_date} hasta {end_date}")
+    data = yf.download(todos_tickers, start=start_date, end=end_date)
+    
+    if data.empty:
+        print("❌ No se pudieron descargar datos. Verifique los tickers y el rango de fechas.")
+        return pd.DataFrame()
 
+    print(f"Columnas de datos descargados: {data.columns}")
+    print(f"Primeras 5 filas de datos descargados:\n{data.head()}")
+    if "Adj Close" in data.columns:
+        df_precios = data["Adj Close"].dropna(how="all")
+    elif "Close" in data.columns:
+        df_precios = data["Close"].dropna(how="all")
+    else:
+        print("❌ No se encontró la columna 'Adj Close' ni 'Close' en los datos descargados.")
+        return pd.DataFrame()
+    
+    # Guardar datos descargados en caché
+    for ticker in df_precios.columns:
+        filepath = os.path.join(CARPETA_DATOS_CACHE, f"{ticker}.csv")
+        df_precios[[ticker]].to_csv(filepath)
+        print(f"✅ Datos de {ticker} guardados en caché: {filepath}")
 
+    return df_precios
+
+def cargar_datos_locales(tickers, benchmark=None):
+    """
+    Intenta cargar datos de precios desde archivos CSV locales.
+    """
+    todos_tickers = list(tickers)
+    if benchmark and benchmark not in todos_tickers:
+        todos_tickers.append(benchmark)
+
+    df_cargado = pd.DataFrame()
+    datos_disponibles = True
+
+    for ticker in todos_tickers:
+        filepath = os.path.join(CARPETA_DATOS_CACHE, f"{ticker}.csv")
+        if os.path.exists(filepath):
+            try:
+                df_temp = pd.read_csv(filepath, index_col=0, parse_dates=True)
+                df_cargado = pd.concat([df_cargado, df_temp], axis=1)
+            except Exception as e:
+                print(f"⚠️ Error al cargar {filepath}: {e}")
+                datos_disponibles = False
+                break
+        else:
+            print(f"Archivo no encontrado: {filepath}")
+            datos_disponibles = False
+            break
+
+    if datos_disponibles and not df_cargado.empty:
+        print("✅ Datos cargados desde caché local.")
+        return df_cargado
+    else:
+        print("No se pudieron cargar todos los datos desde caché local. Se procederá a descargar.")
+        return None
 
 def calcular_beta(activo, benchmark, retornos_combinados):
     """
@@ -467,53 +528,17 @@ if __name__ == "__main__":
     print("🚀 Iniciando análisis cuantitativo completo de carteras...")
     
     # Cargar o descargar datos
-    FUENTE_DATOS = "local" # Define la fuente de datos (puede ser "local" o "yfinance")
-
-    if FUENTE_DATOS == "local":
-        dataframes = {}
-        for archivo in os.listdir(CARPETA_LOCALES):
-            nombre_sin_ext = os.path.splitext(archivo)[0]
-
-            # Solo archivos con nombre completamente en MAYÚSCULAS
-            if not nombre_sin_ext.isupper():
-                continue
-
-            # Solo procesar CSV, XLSX, XLS
-            if not archivo.lower().endswith((".csv", ".xlsx", ".xls")):
-                continue
-
-            ruta = os.path.join(CARPETA_LOCALES, archivo)
-            try:
-                if archivo.lower().endswith(".csv"):
-                    df = pd.read_csv(ruta, index_col=0, parse_dates=True)
-                else:
-                    df = pd.read_excel(ruta, index_col=0, parse_dates=True)
-
-                # Buscar columna que contenga 'close' (sin importar mayúsculas/minúsculas)
-                col_match = [col for col in df.columns if 'close' in col.lower()]
-                if col_match:
-                    df = df[[col_match[0]]].rename(columns={col_match[0]: nombre_sin_ext})
-                    dataframes[nombre_sin_ext] = df
-                    print(f"✅ Cargado: {archivo} usando columna '{col_match[0]}'")
-                else:
-                    print(f"⚠️ Archivo {archivo} no tiene columna que contenga 'Close'. Saltando.")
-
-            except Exception as e:
-                print(f"❌ Error leyendo {archivo}: {e}")
-        
-        if not dataframes:
-            print("❌ No se encontraron datos válidos desde los archivos locales. Abortando.")
-            exit()
-        
-        df_precios = pd.concat(dataframes.values(), axis=1)
-        print(f"\n📊 Datos de precios cargados correctamente")
-        print(f"Período: {df_precios.index.min().date()} a {df_precios.index.max().date()}")
-        print(f"Activos: {list(df_precios.columns)}")
-
-    else:
-        # Aquí iría la lógica para otras fuentes de datos si se implementaran
-        print("❌ FUENTE_DATOS no reconocida o no implementada. Abortando.")
+    df_precios = cargar_datos_locales(activos_cartera, benchmark_elegido)
+    if df_precios is None or df_precios.empty:
+        df_precios = descargar_datos(activos_cartera, fecha_inicio_analisis, fecha_fin_analisis, benchmark_elegido)
+    
+    if df_precios.empty:
+        print("❌ No se pudieron obtener datos para el análisis. Saliendo.")
         exit()
+
+    print(f"\n📊 Datos de precios cargados correctamente")
+    print(f"Período: {df_precios.index[0]} a {df_precios.index[-1]}")
+    print(f"Activos: {list(df_precios.columns)}")
     
     # Separar benchmark
     if benchmark_elegido in df_precios.columns:
