@@ -4,9 +4,9 @@ import os
 from datetime import datetime
 
 # === CONFIGURACIÓN GENERAL ===
-FORMATO_EDITADO = False  # 🔁 CAMBIÁ ESTO A True PARA EXCEL FORMATEADO
+FORMATO_EDITADO = True  # 🔁 CAMBIÁ ESTO A True PARA EXCEL FORMATEADO
 
-sectores = {
+'''sectores = {
     'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL'],
     'Salud': ['JNJ', 'PFE'],
     'Finanzas': ['JPM', 'WFC', 'C', 'GS'],
@@ -19,7 +19,8 @@ sectores = {
     'Comunicaciones': ['T', 'DIS'],
     'Real Estate': ['PLD', 'AMT'],
     'Benchmark': ['SPY']
-}
+}'''
+sectores={'Tikers': ['ETHA','IBIT','GLD','FXI','SMH','SPXL','XLU','CIBR','URA','IEUR','IBB','IVW','IVE','XLC','XLB','XLI','XLK','XLRE','XLF','XLP','XLV','XLY','VEA']}
 
 fecha_inicio = '2015-01-01'
 fecha_fin = '2025-06-16'

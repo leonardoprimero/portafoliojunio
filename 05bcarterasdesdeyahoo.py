@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import os
@@ -25,85 +24,61 @@ plt.style.use("seaborn-v0_8")
 plt.rcParams["font.sans-serif"] = ["Noto Sans CJK SC", "WenQuanYi Zen Hei", "PingFang SC", "Arial Unicode MS", "Hiragino Sans GB"]
 plt.rcParams["axes.unicode_minus"] = False
 
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 # --- CONFIGURACIÓN GLOBAL ---
+CARPETA_DATOS_LOCALES = "./datospython1"  # carpeta con CSVs o Excels
 CARPETA_SALIDA = "DatosCartera"
 CARPETA_GRAFICOS_TEMP = os.path.join(CARPETA_SALIDA, "temp_graficos")
-CARPETA_DATOS_CACHE = os.path.join(CARPETA_SALIDA, "data_cache")
 BENCHMARK_DEFAULT = "SPY"
 
 # Asegurar que las carpetas existan
 os.makedirs(CARPETA_SALIDA, exist_ok=True)
 os.makedirs(CARPETA_GRAFICOS_TEMP, exist_ok=True)
-os.makedirs(CARPETA_DATOS_CACHE, exist_ok=True)
 
 # --- FUNCIONES DE UTILIDAD ---
-def descargar_datos(tickers, start_date, end_date, benchmark=None):
+def cargar_datos_locales():
     """
-    Descarga datos históricos de precios de Yahoo Finance.
+    Carga datos de precios desde archivos CSV locales en CARPETA_DATOS_LOCALES.
     """
-    todos_tickers = list(tickers)
-    if benchmark and benchmark not in todos_tickers:
-        todos_tickers.append(benchmark)
+    dataframes = {}
+    for archivo in os.listdir(CARPETA_DATOS_LOCALES):
+        nombre_sin_ext = os.path.splitext(archivo)[0]
 
-    print(f"Descargando datos para: {todos_tickers} desde {start_date} hasta {end_date}")
-    data = yf.download(todos_tickers, start=start_date, end=end_date)
-    
-    if data.empty:
-        print("❌ No se pudieron descargar datos. Verifique los tickers y el rango de fechas.")
+        # Filtrar por nombre de archivo (solo mayúsculas) y extensión
+        if not nombre_sin_ext.isupper() or not archivo.lower().endswith(".csv"):
+            continue
+
+        ruta = os.path.join(CARPETA_DATOS_LOCALES, archivo)
+        try:
+            # Leer el CSV, saltando las filas 1 y 2 (índice 0 y 1) y usando la fila 0 (la que contiene 'Price', 'Close', etc.) como encabezado
+            # La columna de fecha es la primera columna (índice 0) y se parsea como fecha
+            df = pd.read_csv(ruta, skiprows=[1, 2], header=0, index_col=0, parse_dates=True)
+            
+            # Se busca la columna 'Close' o 'Price' (en ese orden de preferencia)
+            columnas = [col for col in df.columns if col.lower() == 'close']
+            if not columnas:
+                columnas = [col for col in df.columns if col.lower() == 'price']
+            if not columnas:
+                columnas = [col for col in df.columns if col.lower() in ['adj close', 'precio_cierre']]
+
+            if columnas:
+                df_filtrado = df[[columnas[0]]].rename(columns={columnas[0]: nombre_sin_ext})
+                df_filtrado[nombre_sin_ext] = pd.to_numeric(df_filtrado[nombre_sin_ext], errors='coerce') # Convertir a numérico, forzando NaN en errores
+                df_filtrado = df_filtrado.dropna() # Eliminar filas con NaN después de la conversión
+                if not df_filtrado.empty:
+                    dataframes[nombre_sin_ext] = df_filtrado
+                    print(f"✅ Cargado CSV: {archivo} usando columna '{columnas[0]}'")
+            else:
+                print(f"⚠️ Archivo CSV {archivo} no tiene columna de precio reconocida. Saltando.")
+        except Exception as e:
+            print(f"❌ Error leyendo {archivo}: {e}")
+
+    if not dataframes:
+        print("❌ No se encontraron datos válidos en la carpeta local.")
         return pd.DataFrame()
-
-    print(f"Columnas de datos descargados: {data.columns}")
-    print(f"Primeras 5 filas de datos descargados:\n{data.head()}")
-    if "Adj Close" in data.columns:
-        df_precios = data["Adj Close"].dropna(how="all")
-    elif "Close" in data.columns:
-        df_precios = data["Close"].dropna(how="all")
-    else:
-        print("❌ No se encontró la columna 'Adj Close' ni 'Close' en los datos descargados.")
-        return pd.DataFrame()
     
-    # Guardar datos descargados en caché
-    for ticker in df_precios.columns:
-        filepath = os.path.join(CARPETA_DATOS_CACHE, f"{ticker}.csv")
-        df_precios[[ticker]].to_csv(filepath)
-        print(f"✅ Datos de {ticker} guardados en caché: {filepath}")
-
-    return df_precios
-
-def cargar_datos_locales(tickers, benchmark=None):
-    """
-    Intenta cargar datos de precios desde archivos CSV locales.
-    """
-    todos_tickers = list(tickers)
-    if benchmark and benchmark not in todos_tickers:
-        todos_tickers.append(benchmark)
-
-    df_cargado = pd.DataFrame()
-    datos_disponibles = True
-
-    for ticker in todos_tickers:
-        filepath = os.path.join(CARPETA_DATOS_CACHE, f"{ticker}.csv")
-        if os.path.exists(filepath):
-            try:
-                df_temp = pd.read_csv(filepath, index_col=0, parse_dates=True)
-                df_cargado = pd.concat([df_cargado, df_temp], axis=1)
-            except Exception as e:
-                print(f"⚠️ Error al cargar {filepath}: {e}")
-                datos_disponibles = False
-                break
-        else:
-            print(f"Archivo no encontrado: {filepath}")
-            datos_disponibles = False
-            break
-
-    if datos_disponibles and not df_cargado.empty:
-        print("✅ Datos cargados desde caché local.")
-        return df_cargado
-    else:
-        print("No se pudieron cargar todos los datos desde caché local. Se procederá a descargar.")
-        return None
+    return pd.concat(dataframes.values(), axis=1).dropna()
 
 def calcular_beta(activo, benchmark, retornos_combinados):
     """
@@ -149,7 +124,6 @@ def calcular_volatilidad_movil(df_precios, ventana=60):
 def simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000):
     """
     Realiza simulación Monte Carlo para optimización de portafolios.
-    Basado en el código de montecarlo.py proporcionado.
     """
     print(f"🎲 Iniciando simulación Monte Carlo con {num_simulaciones} iteraciones...")
     
@@ -165,7 +139,7 @@ def simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000):
         d['sharpe'] = d['retorno'] / d['volatilidad'] if d['volatilidad'] != 0 else 0
         datos_activos.append(d)
     
-    datos_activos = pd.DataFrame(datos_activos).set_index('ticker')
+    datos_activos = pd.DataFrame(datos_activos, index=retornos_diarios.columns)
     
     # Simulación Monte Carlo
     for i in range(num_simulaciones):
@@ -185,7 +159,7 @@ def simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000):
     
     # Encontrar portafolio óptimo
     optimo = carteras_df.loc[carteras_df.sharpe.idxmax()]
-    mejor_portafolio = carteras_df.iloc[carteras_df.sharpe.idxmax()]['pesos']
+    mejor_portafolio = optimo['pesos']
     datos_activos['ponderacion_optima'] = mejor_portafolio
     
     print(f"✅ Simulación Monte Carlo completada. Mejor Sharpe Ratio: {optimo.sharpe:.4f}")
@@ -204,7 +178,7 @@ def limpiar_texto(texto):
             'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U',
             'ü': 'u', 'Ü': 'U',
             '°': ' grados', '€': 'EUR', '£': 'GBP', '¥': 'JPY',
-            '–': '-', '—': '-', ''': "'", ''': "'", '"': '"', '"': '"',
+            '–': '-', '—': '-', '‘': "'", '’': "'", '“': '"', '”': '"',
             '•': '-', '●': '-', '◦': '-', '★': '*', '☆': '*',
             '→': '->', '←': '<-', '↑': '^', '↓': 'v',
             '≥': '>=', '≤': '<=', '≠': '!=', '±': '+/-',
@@ -432,555 +406,287 @@ class PDFMejorado(FPDF):
         # Limitar número de filas si es muy grande
         if len(dataframe) > max_rows:
             df_display = dataframe.head(max_rows)
-            self.chapter_body(f"Mostrando las primeras {max_rows} filas de {len(dataframe)} total.")
+            self.chapter_body(f"Mostrando las primeras {max_rows} filas.")
         else:
-            df_display = dataframe
+            df_display = dataframe.copy()
+
+        # Preparar datos para la tabla
+        # Asegurarse de que el índice sea una columna si no lo es ya
+        df_temp = df_display.reset_index() if df_display.index.name else df_display.copy()
         
-        # Calcular ancho de columnas
-        available_width = self.w - 2 * self.l_margin - 10
-        num_cols = len(df_display.columns) + 1  # +1 para el índice
-        col_width = available_width / num_cols
+        # Convertir todas las columnas a string para evitar problemas de formato
+        df_temp = df_temp.astype(str)
+
+        # Calcular ancho de columnas dinámicamente
+        col_widths = []
+        for col in df_temp.columns:
+            # Ancho mínimo, o el máximo entre el largo del encabezado y el largo de los datos
+            max_data_len = df_temp[col].apply(len).max()
+            col_widths.append(max(self.get_string_width(col) + 6, max_data_len * 1.5))
         
-        # Asegurar ancho mínimo y máximo
-        col_width = max(15, min(col_width, 35))
+        # Normalizar anchos para que sumen el ancho de la página
+        total_width = sum(col_widths)
+        page_width = self.w - 2 * self.l_margin
         
-        # Encabezados
+        if total_width > page_width:
+            scale_factor = page_width / total_width
+            col_widths = [w * scale_factor for w in col_widths]
+        
+        # Añadir encabezados
         self.set_font('Arial', 'B', 8)
-        
-        # Índice
-        self.cell(col_width, 7, 'Activo', 1, 0, 'C')
-        
-        # Columnas
-        for col in df_display.columns:
-            col_text = limpiar_texto(str(col))
-            if len(col_text) > 12:
-                col_text = col_text[:12] + '...'
-            self.cell(col_width, 7, col_text, 1, 0, 'C')
+        for i, col in enumerate(df_temp.columns):
+            self.cell(col_widths[i], 8, limpiar_texto(col), 1, 0, 'C')
         self.ln()
         
-        # Datos
-        self.set_font('Arial', '', 7)
-        for index, row in df_display.iterrows():
-            # Verificar si necesitamos nueva página
-            if self.get_y() > self.h - 30:
-                self.add_page()
-                # Repetir encabezados
-                self.set_font('Arial', 'B', 8)
-                self.cell(col_width, 7, 'Activo', 1, 0, 'C')
-                for col in df_display.columns:
-                    col_text = limpiar_texto(str(col))
-                    if len(col_text) > 12:
-                        col_text = col_text[:12] + '...'
-                    self.cell(col_width, 7, col_text, 1, 0, 'C')
-                self.ln()
-                self.set_font('Arial', '', 7)
-            
-            # Índice
-            index_text = limpiar_texto(str(index))
-            if len(index_text) > 10:
-                index_text = index_text[:10] + '...'
-            self.cell(col_width, 6, index_text, 1, 0, 'C')
-            
-            # Valores
-            for col in df_display.columns:
-                value = row[col]
-                if isinstance(value, (int, float)):
-                    if abs(value) < 0.0001 and value != 0:
-                        value_text = f'{value:.2e}'
-                    else:
-                        value_text = f'{value:.4f}'
-                else:
-                    value_text = limpiar_texto(str(value))
-                    if len(value_text) > 10:
-                        value_text = value_text[:10] + '...'
-                
-                self.cell(col_width, 6, value_text, 1, 0, 'C')
+        # Añadir filas de datos
+        self.set_font('Arial', '', 8)
+        for index, row in df_temp.iterrows():
+            for i, cell_value in enumerate(row):
+                self.cell(col_widths[i], 8, limpiar_texto(cell_value), 1, 0, 'C')
             self.ln()
-        
         self.ln(5)
 
-    def add_metrics_section(self, title, metrics_dict):
-        """Añade una sección de métricas formateada"""
-        self.chapter_title(title)
-        
-        for key, value in metrics_dict.items():
-            key_clean = limpiar_texto(str(key))
-            if isinstance(value, (int, float)):
-                if abs(value) < 1:
-                    value_text = f"{value:.2%}" if abs(value) < 1 else f"{value:.4f}"
-                else:
-                    value_text = f"{value:.4f}"
-            else:
-                value_text = limpiar_texto(str(value))
-            
-            self.chapter_body(f"- {key_clean}: {value_text}")
-        
-        self.ln(3)
+# --- CÓDIGO PRINCIPAL ---
+df_precios = cargar_datos_locales()
 
+if df_precios.empty:
+    print("❌ No se encontraron datos válidos para procesar. Saliendo.")
+    exit()
 
-if __name__ == "__main__":
-    # Configuración de activos y fechas
-    activos_cartera = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM"]
-    fecha_inicio_analisis = "2020-01-01"
-    fecha_fin_analisis = "2024-12-31"
-    benchmark_elegido = BENCHMARK_DEFAULT
+# Eliminar el benchmark si está presente en los datos
+if BENCHMARK_DEFAULT in df_precios.columns:
+    df_precios = df_precios.drop(columns=[BENCHMARK_DEFAULT])
 
-    print("🚀 Iniciando análisis cuantitativo completo de carteras...")
-    
-    # Cargar o descargar datos
-    df_precios = cargar_datos_locales(activos_cartera, benchmark_elegido)
-    if df_precios is None or df_precios.empty:
-        df_precios = descargar_datos(activos_cartera, fecha_inicio_analisis, fecha_fin_analisis, benchmark_elegido)
-    
-    if df_precios.empty:
-        print("❌ No se pudieron obtener datos para el análisis. Saliendo.")
-        exit()
+if df_precios.empty:
+    print("❌ No hay datos de precios después de la limpieza. Saliendo.")
+    exit()
 
-    print(f"\n📊 Datos de precios cargados correctamente")
-    print(f"Período: {df_precios.index[0]} a {df_precios.index[-1]}")
-    print(f"Activos: {list(df_precios.columns)}")
-    
-    # Separar benchmark
-    if benchmark_elegido in df_precios.columns:
-        df_benchmark = df_precios[[benchmark_elegido]].copy()
-        df_activos = df_precios.drop(columns=[benchmark_elegido]).copy()
-    else:
-        print(f"⚠️ El benchmark {benchmark_elegido} no se encontró en los datos.")
-        df_benchmark = None
-        df_activos = df_precios.copy()
+# Calcular retornos diarios
+retornos_diarios = df_precios.pct_change().dropna()
 
-    # --- CÁLCULOS PRINCIPALES ---
-    
-    # 1. Retornos diarios
-    print("\n📈 Calculando retornos y estadísticas...")
-    retornos_diarios = np.log(df_activos / df_activos.shift(1)).dropna()
-    
-    # 2. Estadísticas descriptivas COMPLETAS
-    estadisticas_descriptivas = calcular_estadisticas_descriptivas(retornos_diarios)
-    print("✅ Estadísticas descriptivas calculadas")
-    
-    # 3. Volatilidad móvil (60 días)
-    volatilidad_movil = calcular_volatilidad_movil(df_activos, ventana=60)
-    print("✅ Volatilidad móvil calculada")
-    
-    # 4. Matrices de correlación
-    cor_matrix_pearson = retornos_diarios.corr()
-    cor_matrix_spearman = retornos_diarios.corr(method="spearman")
-    
-    # 5. PCA
-    print("\n🔍 Realizando análisis PCA...")
-    retornos_for_pca = retornos_diarios.dropna(axis=1, how="any")
-    if retornos_for_pca.shape[0] > 0 and retornos_for_pca.shape[1] > 0:
-        pca = PCA()
-        pca.fit(retornos_for_pca)
-        explained_var = pca.explained_variance_ratio_
-        components = pd.DataFrame(
-            pca.components_,
-            columns=retornos_for_pca.columns,
-            index=[f"PC{i+1}" for i in range(pca.components_.shape[0])]
-        )
-        print(f"✅ PCA completado. Varianza explicada por PC1: {explained_var[0]:.2%}")
-    else:
-        explained_var = np.array([])
-        components = pd.DataFrame()
-        print("❗️ No hay datos suficientes para PCA")
+if retornos_diarios.empty:
+    print("❌ No hay retornos diarios válidos después de la limpieza. Saliendo.")
+    exit()
 
-    # 6. Cálculo de Betas
-    print("\n📊 Calculando coeficientes Beta...")
-    betas = {}
-    if df_benchmark is not None and not df_benchmark.empty:
-        retornos_benchmark_diarios = np.log(df_benchmark / df_benchmark.shift(1)).dropna()
-        retornos_combinados = pd.concat([retornos_diarios, retornos_benchmark_diarios], axis=1).dropna()
-        for activo in retornos_diarios.columns:
-            betas[activo] = calcular_beta(activo, benchmark_elegido, retornos_combinados)
-        betas_df = pd.DataFrame(betas.items(), columns=["Activo", f"Beta_{benchmark_elegido}"])
-        betas_df = betas_df.set_index("Activo")
-        print(f"✅ Betas calculadas respecto a {benchmark_elegido}")
-    else:
-        betas_df = pd.DataFrame()
-        print("⚠️ No se pueden calcular Betas: Benchmark no disponible")
+# --- 1. Estadísticas Descriptivas ---
+print("📊 Calculando estadísticas descriptivas...")
+estadisticas_df = calcular_estadisticas_descriptivas(retornos_diarios)
+print("✅ Estadísticas descriptivas calculadas.")
 
-    # 7. Clustering
-    print("\n🎯 Realizando clustering de activos...")
-    if not cor_matrix_pearson.empty and cor_matrix_pearson.shape[0] > 1:
-        linkage_matrix = linkage(1 - cor_matrix_pearson.abs(), method="ward")
-        cluster_labels = fcluster(linkage_matrix, t=0.5, criterion="distance")
-        cluster_df = pd.DataFrame({"Activo": cor_matrix_pearson.columns, "Cluster": cluster_labels})
-        cluster_df = cluster_df.set_index("Activo")
-        print(f"✅ Clustering completado. {len(set(cluster_labels))} clusters identificados")
-    else:
-        cluster_df = pd.DataFrame()
-        print("❗️ No hay datos suficientes para clustering")
+# --- 2. Matriz de Correlación ---
+print("📈 Calculando matriz de correlación...")
+matriz_correlacion = retornos_diarios.corr()
+print("✅ Matriz de correlación calculada.")
 
-    # 8. Simulación Monte Carlo
-    print("\n🎲 Ejecutando simulación Monte Carlo...")
-    carteras_mc, datos_activos_mc, optimo_mc = simulacion_monte_carlo(retornos_diarios, num_simulaciones=15000)
+# --- 3. Volatilidad Móvil ---
+print("📉 Calculando volatilidad móvil...")
+volatilidad_movil_df = calcular_volatilidad_movil(df_precios)
+print("✅ Volatilidad móvil calculada.")
 
-    # 9. Optimización de Markowitz - TRES PORTAFOLIOS
-    print("\n📊 Calculando portafolios óptimos...")
-    
-    mu = expected_returns.mean_historical_return(df_activos)
-    S = risk_models.sample_cov(df_activos)
-    
-    # Portafolio 1: Máxima Sharpe
-    ef1 = EfficientFrontier(mu, S)
-    weights_sharpe = ef1.max_sharpe()
-    cleaned_weights_sharpe = ef1.clean_weights()
-    perf_sharpe = ef1.portfolio_performance(verbose=False)
-    
-    # Portafolio 2: Mínima Volatilidad
-    ef2 = EfficientFrontier(mu, S)
-    weights_min_vol = ef2.min_volatility()
-    cleaned_weights_min_vol = ef2.clean_weights()
-    perf_min_vol = ef2.portfolio_performance(verbose=False)
-    
-    # Portafolio 3: Equal Weight
-    num_assets = len(df_activos.columns)
-    weights_equal = {asset: 1/num_assets for asset in df_activos.columns}
-    
-    # Calcular performance del Equal Weight
-    equal_weights_array = np.array([1/num_assets] * num_assets)
-    equal_return = np.sum(mu * equal_weights_array)
-    equal_volatility = np.sqrt(np.dot(equal_weights_array, np.dot(S, equal_weights_array)))
-    equal_sharpe = equal_return / equal_volatility
-    perf_equal = (equal_return, equal_volatility, equal_sharpe)
-    
-    print(f"✅ Portafolio Máxima Sharpe - Retorno: {perf_sharpe[0]:.2%}, Volatilidad: {perf_sharpe[1]:.2%}, Sharpe: {perf_sharpe[2]:.4f}")
-    print(f"✅ Portafolio Mínima Volatilidad - Retorno: {perf_min_vol[0]:.2%}, Volatilidad: {perf_min_vol[1]:.2%}, Sharpe: {perf_min_vol[2]:.4f}")
-    print(f"✅ Portafolio Equal Weight - Retorno: {perf_equal[0]:.2%}, Volatilidad: {perf_equal[1]:.2%}, Sharpe: {perf_equal[2]:.4f}")
+# --- 4. Simulación Monte Carlo ---
+carteras_df, datos_activos, optimo = simulacion_monte_carlo(retornos_diarios)
 
-    # --- EVOLUCIÓN DE LOS TRES PORTAFOLIOS ---
-    print("\n📈 Calculando evolución de los tres portafolios...")
-    
-    # Calcular retornos de cada portafolio
-    portfolio_returns_sharpe = (retornos_diarios * pd.Series(cleaned_weights_sharpe)).sum(axis=1)
-    portfolio_returns_min_vol = (retornos_diarios * pd.Series(cleaned_weights_min_vol)).sum(axis=1)
-    portfolio_returns_equal = (retornos_diarios * pd.Series(weights_equal)).sum(axis=1)
-    
-    # Calcular evolución acumulada
-    cumulative_sharpe = (1 + portfolio_returns_sharpe).cumprod()
-    cumulative_min_vol = (1 + portfolio_returns_min_vol).cumprod()
-    cumulative_equal = (1 + portfolio_returns_equal).cumprod()
-    
-    # Agregar benchmark si está disponible
-    if df_benchmark is not None and not df_benchmark.empty:
-        benchmark_daily_returns = np.log(df_benchmark / df_benchmark.shift(1)).dropna()
-        cumulative_benchmark = (1 + benchmark_daily_returns).cumprod()
-        
-        # Combinar todos los retornos
-        combined_returns = pd.DataFrame({
-            "Maxima Sharpe": cumulative_sharpe,
-            "Minima Volatilidad": cumulative_min_vol,
-            "Equal Weight": cumulative_equal,
-            f"Benchmark ({benchmark_elegido})": cumulative_benchmark.iloc[:, 0]
-        }).dropna()
-    else:
-        combined_returns = pd.DataFrame({
-            "Maxima Sharpe": cumulative_sharpe,
-            "Minima Volatilidad": cumulative_min_vol,
-            "Equal Weight": cumulative_equal
-        }).dropna()
+# --- 5. Frontera Eficiente (PyPortfolioOpt) ---
+print("✨ Calculando Frontera Eficiente...")
+mu = expected_returns.mean_historical_return(df_precios)
+S = risk_models.sample_cov(df_precios)
 
-    # --- GENERACIÓN DE GRÁFICOS ---
-    print("\n🎨 Generando gráficos...")
-    
-    # 1. Heatmap de correlación
-    plt.figure(figsize=(12, 10))
-    mask = np.triu(np.ones_like(cor_matrix_pearson, dtype=bool))
-    sns.heatmap(cor_matrix_pearson, mask=mask, annot=True, fmt=".2f", cmap="coolwarm", center=0,
-                linewidths=.5, cbar_kws={"shrink": .8, "label": "Correlacion"})
-    plt.title("Matriz de Correlacion entre Activos", fontsize=16, weight="bold")
-    plt.xticks(rotation=45, ha="right")
-    plt.yticks(rotation=0)
+# Crear una nueva instancia de EfficientFrontier para el plotting
+ef_plot = EfficientFrontier(mu, S)
+
+ef = EfficientFrontier(mu, S)
+weights_max_sharpe = ef.max_sharpe()
+cleaned_weights_sharpe = ef.clean_weights()
+
+ef_vol = EfficientFrontier(mu, S)
+weights_min_volatility = ef_vol.min_volatility()
+cleaned_weights_min_volatility = ef_vol.clean_weights()
+
+print("✅ Frontera Eficiente calculada.")
+
+# --- 6. Análisis de Componentes Principales (PCA) ---
+print("🔍 Realizando Análisis de Componentes Principales (PCA)...")
+pca = PCA().fit(retornos_diarios)
+explained_variance_ratio = pca.explained_variance_ratio_
+print("✅ PCA completado.")
+
+# --- 7. Clustering Jerárquico ---
+print("🌳 Realizando Clustering Jerárquico...")
+# Calcular la matriz de distancia (1 - correlación absoluta)
+distance_matrix = 1 - matriz_correlacion.abs()
+# Convertir la matriz de distancia a formato condensado
+condensed_distance = distance_matrix.values[np.triu_indices_from(distance_matrix, k=1)]
+# Realizar el clustering jerárquico
+Z = linkage(condensed_distance, method='ward')
+
+# Asignar clusters (por ejemplo, 3 clusters)
+num_clusters = min(3, len(matriz_correlacion.columns))
+clusters = fcluster(Z, num_clusters, criterion='maxclust')
+cluster_map = pd.DataFrame({'Activo': matriz_correlacion.columns, 'Cluster': clusters})
+print("✅ Clustering Jerárquico completado.")
+
+# --- GENERACIÓN DE GRÁFICOS ---
+print("🎨 Generando gráficos...")
+
+# Gráfico 1: Heatmap de Correlación
+plt.figure(figsize=(10, 8))
+sns.heatmap(matriz_correlacion, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Matriz de Correlación de Retornos')
+plt.tight_layout()
+heatmap_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'heatmap_correlacion.png')
+plt.savefig(heatmap_path)
+plt.close()
+
+# Gráfico 2: Frontera Eficiente
+plt.figure(figsize=(10, 6))
+plotting.plot_efficient_frontier(ef_plot, show_assets=True)
+plt.title('Frontera Eficiente')
+plt.tight_layout()
+efficient_frontier_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'frontera_eficiente.png')
+plt.savefig(efficient_frontier_path)
+plt.close()
+
+# Gráfico 3: Pesos del Portafolio de Máximo Sharpe
+plt.figure(figsize=(8, 6))
+plotting.plot_weights(cleaned_weights_sharpe)
+plt.title('Pesos del Portafolio de Máximo Sharpe')
+plt.tight_layout()
+weights_sharpe_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'pesos_max_sharpe.png')
+plt.savefig(weights_sharpe_path)
+plt.close()
+
+# Gráfico 4: Pesos del Portafolio de Mínima Volatilidad
+plt.figure(figsize=(8, 6))
+plotting.plot_weights(cleaned_weights_min_volatility)
+plt.title('Pesos del Portafolio de Mínima Volatilidad')
+plt.tight_layout()
+weights_min_vol_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'pesos_min_volatilidad.png')
+plt.savefig(weights_min_vol_path)
+plt.close()
+
+# Gráfico 5: Varianza Explicada por PCA
+plt.figure(figsize=(10, 6))
+plt.bar(range(1, len(explained_variance_ratio) + 1), explained_variance_ratio * 100)
+plt.xlabel('Componente Principal')
+plt.ylabel('% de Varianza Explicada')
+plt.title('Varianza Explicada por PCA')
+plt.tight_layout()
+pca_variance_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'pca_varianza_explicada.png')
+plt.savefig(pca_variance_path)
+plt.close()
+
+# Gráfico 6: Dendrograma
+plt.figure(figsize=(12, 8))
+dendrogram(Z, labels=matriz_correlacion.columns, leaf_rotation=90)
+plt.title('Dendrograma de Clustering Jerárquico')
+plt.ylabel('Distancia')
+plt.tight_layout()
+dendrogram_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'dendrograma.png')
+plt.savefig(dendrogram_path)
+plt.close()
+
+# Gráfico 7: Simulación Monte Carlo
+plt.figure(figsize=(10, 6))
+plt.scatter(carteras_df.volatilidad, carteras_df.retorno, c=carteras_df.sharpe, cmap='viridis')
+plt.title('Simulación Monte Carlo de Portafolios')
+plt.xlabel('Volatilidad')
+plt.ylabel('Retorno Anualizado')
+plt.scatter(optimo.volatilidad, optimo.retorno, color='red', marker='*', s=200, label='Portafolio Óptimo')
+plt.legend()
+plt.tight_layout()
+monte_carlo_path = os.path.join(CARPETA_GRAFICOS_TEMP, 'monte_carlo_simulacion.png')
+plt.savefig(monte_carlo_path)
+plt.close()
+
+print("✅ Gráficos generados.")
+
+# --- GENERACIÓN DE PDF ---
+print("📄 Generando informe PDF...")
+pdf = PDFMejorado()
+pdf.add_cover_page_profesional()
+
+# Resumen Ejecutivo
+pdf.add_page()
+pdf.chapter_title("Resumen Ejecutivo")
+resumen_ejecutivo_texto = (
+    "Este informe presenta un análisis cuantitativo exhaustivo de la cartera de inversión, "
+    "abarcando desde estadísticas descriptivas de los activos hasta la optimización de portafolios "
+    "mediante simulación Monte Carlo y la Frontera Eficiente. Se incluyen análisis avanzados "
+    "como PCA y clustering jerárquico para una comprensión profunda de la estructura de la cartera."
+)
+pdf.chapter_body(resumen_ejecutivo_texto)
+
+# Estadísticas Descriptivas
+pdf.add_page()
+pdf.add_table_mejorada(estadisticas_df.round(4), title="Estadísticas Descriptivas de Retornos Diarios")
+
+# Matriz de Correlación
+pdf.add_page()
+pdf.chapter_title("Matriz de Correlación de Retornos")
+pdf.add_image_with_caption(heatmap_path, "Heatmap de la Matriz de Correlación de Retornos Diarios")
+
+# Volatilidad Móvil
+pdf.add_page()
+pdf.chapter_title("Volatilidad Móvil Anualizada (Ventana de 60 días)")
+# Generar gráficos de volatilidad móvil para cada activo
+for col in volatilidad_movil_df.columns:
+    plt.figure(figsize=(10, 4))
+    plt.plot(volatilidad_movil_df.index, volatilidad_movil_df[col])
+    plt.title(f'Volatilidad Móvil de {col}')
+    plt.xlabel('Fecha')
+    plt.ylabel('Volatilidad Anualizada')
     plt.tight_layout()
-    img_corr_path = os.path.join(CARPETA_GRAFICOS_TEMP, "heatmap_correlacion.png")
-    plt.savefig(img_corr_path, dpi=300, bbox_inches='tight')
+    vol_path = os.path.join(CARPETA_GRAFICOS_TEMP, f'volatilidad_movil_{col}.png')
+    plt.savefig(vol_path)
     plt.close()
+    pdf.add_image_with_caption(vol_path, f"Volatilidad Móvil Anualizada de {col}")
 
-    # 2. Frontera eficiente CON LOS TRES PORTAFOLIOS
-    ef_plot = EfficientFrontier(mu, S)
-    fig, ax = plt.subplots(figsize=(12, 8))
-    plotting.plot_efficient_frontier(ef_plot, ax=ax, show_assets=True)
-    
-    # Plotear los tres portafolios
-    ax.scatter(perf_sharpe[1], perf_sharpe[0], marker="*", s=300, c="red", label="Maxima Sharpe", zorder=3)
-    ax.scatter(perf_min_vol[1], perf_min_vol[0], marker="*", s=300, c="green", label="Minima Volatilidad", zorder=3)
-    ax.scatter(perf_equal[1], perf_equal[0], marker="*", s=300, c="blue", label="Equal Weight", zorder=3)
-    
-    # Plotear resultado Monte Carlo
-    ax.scatter(optimo_mc.volatilidad, optimo_mc.retorno, marker="D", s=200, c="orange", label="Monte Carlo Optimo", zorder=3)
-    
-    ax.set_title("Frontera Eficiente y Portafolios Optimos", fontsize=16, weight="bold")
-    ax.set_xlabel("Volatilidad Anualizada")
-    ax.set_ylabel("Retorno Anualizado")
-    ax.legend()
-    plt.tight_layout()
-    img_ef_path = os.path.join(CARPETA_GRAFICOS_TEMP, "frontera_eficiente_completa.png")
-    plt.savefig(img_ef_path, dpi=300, bbox_inches='tight')
-    plt.close()
+# Simulación Monte Carlo
+pdf.add_page()
+pdf.chapter_title("Simulación Monte Carlo para Optimización de Portafolios")
+pdf.add_image_with_caption(monte_carlo_path, "Gráfico de Simulación Monte Carlo de Portafolios (puntos coloreados por Sharpe Ratio)")
+pdf.add_table_mejorada(datos_activos.round(4), title="Resultados de Simulación Monte Carlo por Activo")
 
-    # 3. Evolución de los tres portafolios
-    plt.figure(figsize=(14, 8))
-    combined_returns.plot(linewidth=2)
-    plt.title("Evolucion Acumulada de los Portafolios vs. Benchmark", fontsize=16, weight="bold")
-    plt.xlabel("Fecha")
-    plt.ylabel("Retorno Acumulado")
-    plt.grid(True, alpha=0.3)
-    plt.legend()
-    plt.tight_layout()
-    img_evolution_path = os.path.join(CARPETA_GRAFICOS_TEMP, "evolucion_tres_portafolios.png")
-    plt.savefig(img_evolution_path, dpi=300, bbox_inches='tight')
-    plt.close()
+# Frontera Eficiente
+pdf.add_page()
+pdf.chapter_title("Frontera Eficiente y Optimización de Portafolios")
+pdf.add_image_with_caption(efficient_frontier_path, "Frontera Eficiente (curva de riesgo-retorno óptima)")
+pdf.add_image_with_caption(weights_sharpe_path, "Pesos del Portafolio de Máximo Sharpe Ratio")
+pdf.add_image_with_caption(weights_min_vol_path, "Pesos del Portafolio de Mínima Volatilidad")
 
-    # 4. Simulación Monte Carlo
-    plt.figure(figsize=(12, 8))
-    plt.scatter(carteras_mc.volatilidad, carteras_mc.retorno, c=carteras_mc.sharpe, s=1, cmap='viridis', alpha=0.6)
-    plt.colorbar(label='Sharpe Ratio')
-    plt.xlabel('Volatilidad Anualizada')
-    plt.ylabel('Retorno Anualizado')
-    plt.title('Simulacion Monte Carlo - Optimizacion de Portafolios')
-    
-    # Plotear portafolio óptimo de Monte Carlo
-    plt.scatter(optimo_mc.volatilidad, optimo_mc.retorno, c='red', s=500, marker='*', label='Optimo Monte Carlo')
-    
-    # Plotear activos individuales
-    for ticker in df_activos.columns:
-        vol = datos_activos_mc.loc[ticker, 'volatilidad']
-        ret = datos_activos_mc.loc[ticker, 'retorno']
-        plt.scatter(vol, ret, c='white', s=200, edgecolors='black', linewidth=2)
-        plt.text(vol, ret, ticker, ha='center', va='center', fontweight='bold')
-    
-    plt.legend()
-    plt.tight_layout()
-    img_montecarlo_path = os.path.join(CARPETA_GRAFICOS_TEMP, "simulacion_monte_carlo.png")
-    plt.savefig(img_montecarlo_path, dpi=300, bbox_inches='tight')
-    plt.close()
+# Análisis de Componentes Principales (PCA)
+pdf.add_page()
+pdf.chapter_title("Análisis de Componentes Principales (PCA)")
+pdf.add_image_with_caption(pca_variance_path, "Varianza Explicada por cada Componente Principal")
+pdf.chapter_body(
+    "El PCA ayuda a reducir la dimensionalidad de los datos, identificando los factores "
+    "subyacentes que explican la mayor parte de la varianza en los retornos de los activos. "
+    "Los primeros componentes principales suelen representar los movimientos más amplios del mercado."
+)
 
-    # 5. Volatilidad móvil
-    plt.figure(figsize=(14, 8))
-    for activo in volatilidad_movil.columns:
-        plt.plot(volatilidad_movil.index, volatilidad_movil[activo], label=activo, linewidth=1.5)
-    plt.title("Volatilidad Movil de 60 dias (Anualizada)", fontsize=16, weight="bold")
-    plt.xlabel("Fecha")
-    plt.ylabel("Volatilidad")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    img_vol_movil_path = os.path.join(CARPETA_GRAFICOS_TEMP, "volatilidad_movil.png")
-    plt.savefig(img_vol_movil_path, dpi=300, bbox_inches='tight')
-    plt.close()
+# Clustering Jerárquico
+pdf.add_page()
+pdf.chapter_title("Clustering Jerárquico de Activos")
+pdf.add_image_with_caption(dendrogram_path, "Dendrograma de Clustering Jerárquico de Activos")
+pdf.add_table_mejorada(cluster_map, title="Asignación de Activos a Clusters")
+pdf.chapter_body(
+    "El clustering jerárquico agrupa activos con comportamientos de retorno similares, "
+    "revelando relaciones y dependencias naturales dentro de la cartera. "
+    "Esto puede ser útil para la diversificación y la gestión de riesgos sectoriales."
+)
 
-    # 6. Dendrograma de clustering
-    if not cluster_df.empty:
-        plt.figure(figsize=(12, 6))
-        dendrogram(linkage_matrix, labels=cor_matrix_pearson.columns, leaf_rotation=45)
-        plt.title("Dendrograma de Clustering de Activos", fontsize=16, weight="bold")
-        plt.tight_layout()
-        dendro_path = os.path.join(CARPETA_GRAFICOS_TEMP, "dendrograma_clustering.png")
-        plt.savefig(dendro_path, dpi=300, bbox_inches='tight')
-        plt.close()
+# Guardar PDF
+pdf_final_path = os.path.join(CARPETA_SALIDA, "informe_cartera_cuantitativo.pdf")
+try:
+    pdf.output(pdf_final_path)
+    print(f"✅ Informe PDF generado en: {pdf_final_path}")
+except Exception as e:
+    print(f"❌ Error al generar el PDF: {e}")
 
-    # 7. Varianza explicada PCA
-    if explained_var.size > 0:
-        plt.figure(figsize=(10, 6))
-        plt.bar(range(1, len(explained_var)+1), explained_var*100, alpha=0.7, color='steelblue')
-        plt.xlabel("Componente Principal")
-        plt.ylabel("% de Varianza Explicada")
-        plt.title("Varianza Explicada por Analisis de Componentes Principales (PCA)")
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        pca_path = os.path.join(CARPETA_GRAFICOS_TEMP, "pca_varianza.png")
-        plt.savefig(pca_path, dpi=300, bbox_inches='tight')
-        plt.close()
+# Limpiar gráficos temporales
+for f in os.listdir(CARPETA_GRAFICOS_TEMP):
+    os.remove(os.path.join(CARPETA_GRAFICOS_TEMP, f))
+os.rmdir(CARPETA_GRAFICOS_TEMP)
+print("✅ Archivos temporales de gráficos eliminados.")
 
-    # --- GUARDAR RESULTADOS EN EXCEL ---
-    print("\n💾 Guardando resultados en Excel...")
-    excel_results_path = os.path.join(CARPETA_SALIDA, "analisisCuantitativoDeActivos.xlsx")
-    with pd.ExcelWriter(excel_results_path, engine="openpyxl") as writer:
-        # Hoja 1: Estadísticas descriptivas
-        estadisticas_descriptivas.to_excel(writer, sheet_name="Estadisticas_Descriptivas")
-        
-        # Hoja 2: Correlaciones
-        cor_matrix_pearson.round(4).to_excel(writer, sheet_name="Correlacion_Pearson")
-        cor_matrix_spearman.round(4).to_excel(writer, sheet_name="Correlacion_Spearman")
-        
-        # Hoja 3: PCA
-        if explained_var.size > 0:
-            pd.DataFrame(explained_var, columns=["Varianza_Explicada"]).to_excel(writer, sheet_name="PCA_Varianza")
-            components.T.round(4).to_excel(writer, sheet_name="PCA_Loadings")
-        
-        # Hoja 4: Betas
-        if not betas_df.empty:
-            betas_df.to_excel(writer, sheet_name="Betas")
-        
-        # Hoja 5: Clustering
-        if not cluster_df.empty:
-            cluster_df.to_excel(writer, sheet_name="Clusters")
-        
-        # Hoja 6: Portafolios
-        portafolios_df = pd.DataFrame({
-            'Maxima Sharpe': pd.Series(cleaned_weights_sharpe),
-            'Minima Volatilidad': pd.Series(cleaned_weights_min_vol),
-            'Equal Weight': pd.Series(weights_equal)
-        }).fillna(0)
-        portafolios_df.to_excel(writer, sheet_name="Portafolios")
-        
-        # Hoja 7: Monte Carlo
-        datos_activos_mc.to_excel(writer, sheet_name="Monte_Carlo_Activos")
-        
-        # Hoja 8: Evolución de portafolios
-        combined_returns.to_excel(writer, sheet_name="Evolucion_Portafolios")
 
-    print(f"✅ Resultados guardados en {excel_results_path}")
-
-    # --- GENERACIÓN DE INFORME PDF MEJORADO ---
-    print("\n📄 Generando informe PDF mejorado...")
-    pdf = PDFMejorado()
-    
-    # Carátula Profesional
-    pdf.add_cover_page_profesional()
-
-    # SECCIÓN 1: Resumen Ejecutivo
-    pdf.add_page()
-    pdf.chapter_title("1. Resumen Ejecutivo")
-    resumen_text = f"""Este informe presenta un analisis cuantitativo completo de una cartera compuesta por {len(activos_cartera)} activos: {', '.join(activos_cartera)}. 
-
-El periodo de analisis abarca desde {fecha_inicio_analisis} hasta {fecha_fin_analisis}.
-
-Se han evaluado tres estrategias de portafolio:
-1. Maxima Sharpe Ratio
-2. Minima Volatilidad  
-3. Equal Weight
-
-Ademas de una optimizacion por simulacion Monte Carlo con {len(carteras_mc)} iteraciones."""
-    
-    pdf.chapter_body(resumen_text)
-    
-    # SECCIÓN 2: Estadísticas Descriptivas
-    pdf.add_page()
-    pdf.add_table_mejorada(estadisticas_descriptivas.round(6), "2. Estadisticas Descriptivas por Activo")
-    pdf.chapter_body("Las estadisticas muestran el comportamiento historico de los retornos diarios de cada activo. La media indica la tendencia central, la desviacion estandar mide la volatilidad, el skewness la asimetria y la kurtosis la forma de la distribucion.")
-    
-    # SECCIÓN 3: Coeficientes Beta
-    if not betas_df.empty:
-        pdf.add_page()
-        pdf.add_table_mejorada(betas_df.round(4), f"3. Coeficientes Beta respecto a {benchmark_elegido}")
-        pdf.chapter_body(f"Los coeficientes Beta miden la sensibilidad de cada activo respecto al benchmark {benchmark_elegido}. Un Beta mayor a 1 indica mayor volatilidad que el mercado, mientras que menor a 1 indica menor volatilidad.")
-
-    # SECCIÓN 4: Análisis de Correlación
-    pdf.add_page()
-    pdf.chapter_title("4. Analisis de Correlacion")
-    pdf.chapter_body("La matriz de correlacion muestra las relaciones lineales entre los retornos de los activos. Correlaciones altas pueden indicar falta de diversificacion.")
-    pdf.add_image_with_caption(img_corr_path, "Figura 4.1: Matriz de Correlacion entre Activos")
-
-    # SECCIÓN 5: Análisis de Componentes Principales (PCA)
-    if explained_var.size > 0:
-        pdf.add_page()
-        pdf.chapter_title("5. Analisis de Componentes Principales (PCA)")
-        pdf.chapter_body("El PCA identifica las direcciones de mayor varianza en los datos, ayudando a entender que factores comunes afectan a los activos.")
-        pdf.add_image_with_caption(pca_path, "Figura 5.1: Varianza Explicada por PCA")
-        pdf.add_table_mejorada(components.T.round(4), "Loadings de PCA por Activo (Primeros 5 componentes)", max_rows=10)
-
-    # SECCIÓN 6: Clustering de Activos
-    if not cluster_df.empty:
-        pdf.add_page()
-        pdf.chapter_title("6. Clustering de Activos")
-        pdf.chapter_body("El analisis de clustering agrupa activos con comportamientos similares, util para estrategias de diversificacion.")
-        pdf.add_image_with_caption(dendro_path, "Figura 6.1: Dendrograma de Clustering")
-        pdf.add_table_mejorada(cluster_df, "Asignacion de Activos a Clusters")
-
-    # SECCIÓN 7: Volatilidad Móvil
-    pdf.add_page()
-    pdf.chapter_title("7. Analisis de Volatilidad Movil")
-    pdf.chapter_body("La volatilidad movil de 60 dias muestra como ha evolucionado el riesgo de cada activo a lo largo del tiempo.")
-    pdf.add_image_with_caption(img_vol_movil_path, "Figura 7.1: Volatilidad Movil de 60 dias")
-
-    # SECCIÓN 8: Frontera Eficiente y Optimización
-    pdf.add_page()
-    pdf.chapter_title("8. Frontera Eficiente y Optimizacion de Portafolios")
-    pdf.chapter_body("Se han optimizado tres tipos de portafolios utilizando la Teoria Moderna de Portafolios de Markowitz, ademas de una optimizacion por Monte Carlo.")
-    pdf.add_image_with_caption(img_ef_path, "Figura 8.1: Frontera Eficiente con Portafolios Optimos")
-    
-    # Métricas de optimización
-    metricas_opt = {
-        "Portafolio Maxima Sharpe": f"Retorno {perf_sharpe[0]:.2%}, Volatilidad {perf_sharpe[1]:.2%}, Sharpe {perf_sharpe[2]:.4f}",
-        "Portafolio Minima Volatilidad": f"Retorno {perf_min_vol[0]:.2%}, Volatilidad {perf_min_vol[1]:.2%}, Sharpe {perf_min_vol[2]:.4f}",
-        "Portafolio Equal Weight": f"Retorno {perf_equal[0]:.2%}, Volatilidad {perf_equal[1]:.2%}, Sharpe {perf_equal[2]:.4f}",
-        "Portafolio Monte Carlo": f"Retorno {optimo_mc.retorno:.2%}, Volatilidad {optimo_mc.volatilidad:.2%}, Sharpe {optimo_mc.sharpe:.4f}"
-    }
-    pdf.add_metrics_section("Resultados de Optimizacion", metricas_opt)
-
-    # SECCIÓN 9: Simulación Monte Carlo
-    pdf.add_page()
-    pdf.chapter_title("9. Simulacion Monte Carlo")
-    pdf.chapter_body(f"Se realizaron {len(carteras_mc)} simulaciones aleatorias para encontrar portafolios optimos mediante exploracion estocastica del espacio de soluciones.")
-    pdf.add_image_with_caption(img_montecarlo_path, "Figura 9.1: Simulacion Monte Carlo - Optimizacion de Portafolios")
-
-    # SECCIÓN 10: Evolución y Comparación de Portafolios
-    pdf.add_page()
-    pdf.chapter_title("10. Evolucion y Comparacion de Portafolios")
-    pdf.chapter_body("Comparacion del rendimiento historico de las tres estrategias de portafolio y el benchmark durante el periodo de analisis.")
-    pdf.add_image_with_caption(img_evolution_path, "Figura 10.1: Evolucion Acumulada de los Portafolios")
-    
-    # Métricas de rendimiento comparativas
-    metricas_rendimiento = {}
-    for nombre, returns in [("Maxima Sharpe", cumulative_sharpe), ("Minima Volatilidad", cumulative_min_vol), ("Equal Weight", cumulative_equal)]:
-        if not returns.empty:
-            total_return = (returns.iloc[-1] / returns.iloc[0]) - 1
-            annualized_return = (1 + total_return)**(252 / len(returns)) - 1
-            daily_ret = returns.pct_change().dropna()
-            ann_vol = daily_ret.std() * np.sqrt(252)
-            sharpe = annualized_return / ann_vol if ann_vol != 0 else 0
-            metricas_rendimiento[nombre] = f"Retorno Total {total_return:.2%}, Retorno Anualizado {annualized_return:.2%}, Volatilidad {ann_vol:.2%}, Sharpe {sharpe:.4f}"
-    
-    pdf.add_metrics_section("Metricas de Rendimiento Comparativas", metricas_rendimiento)
-
-    # SECCIÓN 11: Composición de Portafolios
-    pdf.add_page()
-    pdf.chapter_title("11. Composicion Detallada de Portafolios")
-    pdf.chapter_body("Pesos especificos de cada activo en los diferentes portafolios optimizados:")
-    pdf.add_table_mejorada(portafolios_df.round(4), "Composicion de Portafolios")
-
-    # SECCIÓN 12: Conclusiones y Recomendaciones
-    pdf.add_page()
-    pdf.chapter_title("12. Conclusiones y Recomendaciones")
-    
-    # Determinar el mejor portafolio
-    mejor_sharpe = max(perf_sharpe[2], perf_min_vol[2], perf_equal[2], optimo_mc.sharpe)
-    if mejor_sharpe == perf_sharpe[2]:
-        mejor_portafolio = "Maxima Sharpe"
-    elif mejor_sharpe == perf_min_vol[2]:
-        mejor_portafolio = "Minima Volatilidad"
-    elif mejor_sharpe == perf_equal[2]:
-        mejor_portafolio = "Equal Weight"
-    else:
-        mejor_portafolio = "Monte Carlo"
-    
-    conclusiones_text = f"""Basandose en el analisis cuantitativo realizado, se destacan las siguientes conclusiones:
-
-- El portafolio con mejor ratio Sharpe es: {mejor_portafolio} ({mejor_sharpe:.4f})
-
-- La correlacion promedio entre activos es: {cor_matrix_pearson.mean().mean():.4f}
-
-- El primer componente principal explica {explained_var[0]*100:.1f}% de la varianza
-
-- Se recomienda monitorear la volatilidad movil para ajustes dinamicos de posiciones
-
-- La diversificacion puede mejorarse considerando los resultados del clustering
-
-- La simulacion Monte Carlo proporciona validacion adicional de los resultados de optimizacion
-
-- Se sugiere rebalanceo periodico basado en las metricas de riesgo calculadas"""
-    
-    pdf.chapter_body(conclusiones_text)
-
-    # Guardar PDF
-    pdf_output_path = os.path.join(CARPETA_SALIDA, f"InformeDeActivos{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf")
-    pdf.output(pdf_output_path)
-    
-    print(f"✅ Informe PDF mejorado generado: {pdf_output_path}")
-    print(f"\n🎉 ANALISIS COMPLETADO EXITOSAMENTE")
-    print(f"📁 Resultados disponibles en: {CARPETA_SALIDA}")
-    print(f"📊 Excel: {excel_results_path}")
-    print(f"📄 PDF Mejorado: {pdf_output_path}")
-    print(f"🖼️ Graficos: {CARPETA_GRAFICOS_TEMP}")

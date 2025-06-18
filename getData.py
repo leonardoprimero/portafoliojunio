@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime
 
 # ---------------------- CONFIGURACIÓN ----------------------
-TICKERS = ['AAPL', 'MSFT', 'META', 'GOOGL']  # <- Cambiá por los que quieras    'ETHA','IBIT','GLD','FXI','SMH','SPXL','XLU','CIBR','URA','IEUR','IBB','IVW','IVE','XLC','XLB','XLI','XLK','XLRE','XLF','XLP','XLV','XLY','VEA'
+TICKERS = ['ETHA','IBIT','GLD','FXI','SMH','SPXL','XLU','CIBR','URA','IEUR','IBB','IVW','IVE','XLC','XLB','XLI','XLK','XLRE','XLF','XLP','XLV','XLY','VEA']  # <- Cambiá por los que quieras 
 START_DATE = '2015-01-01'
 END_DATE = '2025-06-17'
 CARPETA_SALIDA = './datospython1'
