@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # === CONFIGURACIÓN GENERAL ===
-FORMATO_EDITADO = True  # 🔁 CAMBIÁ ESTO A True PARA EXCEL FORMATEADO
+FORMATO_EDITADO = False  # 🔁 CAMBIÁ ESTO A True PARA EXCEL FORMATEADO
 
 '''sectores = {
     'Tecnología': ['AAPL', 'MSFT', 'NVDA', 'GOOGL'],

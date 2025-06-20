@@ -11,6 +11,7 @@ import scipy.cluster.hierarchy as sch
    
 
 CARPETA_DATOS = './datospython1'
+CARPETA_GENERAL = './datosgenerales'
 CARPETA_SALIDA = './matriz_correlacion3'
 os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
@@ -213,7 +214,7 @@ with open(insight_file, 'w', encoding='utf-8') as f:
         f.write(linea + "\n")
 
 # ==== CLASIFICACIÓN POR SECTOR ====
-sectores_path = os.path.join(CARPETA_DATOS, 'sectores.csv')
+sectores_path = os.path.join(CARPETA_GENERAL, 'sectores.csv')
 tabla_sector = ""
 sector_correlations = []
 mapa_sectores = {}

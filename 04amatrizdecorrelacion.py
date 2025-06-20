@@ -13,6 +13,7 @@ import scipy.cluster.hierarchy as sch
 
 # ------------------------ CONFIGURACIÓN ------------------------
 CARPETA_DATOS = './datospython1'
+CARPETA_GENERAL = './datosgenerales'
 CARPETA_SALIDA = './matriz_correlacion1'
 os.makedirs(CARPETA_SALIDA, exist_ok=True)
 
@@ -209,7 +210,7 @@ with open(insight_file, 'w', encoding='utf-8') as f:
 print(f"\n🗘️ Resumen guardado en: {insight_file}")
 
 # ------------------------ CLASIFICACIÓN POR SECTOR ------------------------
-sectores_path = os.path.join(CARPETA_DATOS, 'sectores.csv')
+sectores_path = os.path.join(CARPETA_GENERAL, 'sectores.csv')
 tabla_sector = ""
 if os.path.exists(sectores_path):
     df_sectores = pd.read_csv(sectores_path)
@@ -246,7 +247,7 @@ if os.path.exists(sectores_path):
         print("\n⚠️ El archivo de sectores no contiene las columnas necesarias para clasificar.")
 else:
     print("\n📂 No se encontró el archivo 'sectores.csv'.")
-    print("ℹ️ Si lo agregás en ./datospython1, podré calcular correlaciones por sector y sugerencias de cobertura sectorial.")
+    print("ℹ️ Si lo agregás en ./datosgenerales, podré calcular correlaciones por sector y sugerencias de cobertura sectorial.")
     print("Ejemplo de columnas reconocidas: Ticker / Symbol y Sector / GICS Sector")
 
 # ------------------------ PDF PROFESIONAL ------------------------

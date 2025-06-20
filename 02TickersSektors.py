@@ -3,7 +3,7 @@ import pandas as pd
 import yfinance as yf
 
 # Crear carpeta si no existe
-carpeta = './datospython1'
+carpeta = './datosgenerales'
 os.makedirs(carpeta, exist_ok=True)
 
 # 1. Descargar la lista base del S&P 500
