@@ -789,11 +789,11 @@ def procesar_activos():
         plt.close(fig_hist)
         pagina_actual += 1
             
-        print(f"   {nombre} procesado correctamente")
+        print(f"   {nombre} procesado correctamente") # Indentación corregida a 8 espacios
             
         except Exception as e:
             print(f"Error procesando {nombre}: {str(e)}")
-    continue
+            continue # Correctamente indentado para continuar el bucle en caso de excepción
     
     pdf.close()
     print(f"PDF guardado como: {ARCHIVO_PDF}")

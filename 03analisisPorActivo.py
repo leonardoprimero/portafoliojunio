@@ -579,21 +579,15 @@ def procesar_activos():
             # Los datos comienzan en la cuarta línea.
             # Por lo tanto, saltamos las primeras 2 líneas (índice 0 y 1) y usamos la línea 0 (índice 0) como encabezado.
             # La columna de fecha es la primera columna (índice 0).
-            df = pd.read_csv(ruta, skiprows=2, index_col=0, parse_dates=True)
+            df = pd.read_csv(ruta, header=0, skiprows=[1, 2], index_col=0, parse_dates=True)
             
-            # Asegurar el orden cronológico del índice
+            # Asegurarse de que el índice sea DatetimeIndex
+            if not isinstance(df.index, pd.DatetimeIndex):
+                df.index = pd.to_datetime(df.index)
+
+            # Ordenar por fecha
             df.sort_index(inplace=True)
-            
-            # Verificar si el índice es de tipo datetime. Si no, intentar convertir la primera columna a fecha.
-            if not pd.api.types.is_datetime64_any_dtype(df.index):
-                # Si el índice no es fecha, intentar con la primera columna de datos (que debería ser la fecha real)
-                # Esto es una solución robusta si el index_col=0 no funciona como se espera.
-                # Se asume que la primera columna después de saltar las filas es la fecha.
-                df.index = pd.to_datetime(df.index, errors='coerce')
-                df.dropna(subset=[df.index.name], inplace=True) # Eliminar filas con fechas inválidas
-                if df.empty:
-                    print(f"  {nombre}: El DataFrame quedó vacío después de intentar parsear fechas. Saltando este activo.")
-                    continue
+
 
             # Procesar precios
             # Priorizar 'Adj Close', luego 'Close', luego 'Price'

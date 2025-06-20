@@ -82,8 +82,13 @@ fig_height = max(10, len(matriz_correlacion) * 0.4)
 fig_width = fig_height * 0.9
 plt.figure(figsize=(fig_width, fig_height))
 sns.set(style="whitegrid", font_scale=1.1)
-sns.heatmap(matriz_correlacion, annot=True, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1,
-            square=True, linewidths=0.5, cbar_kws={'label': 'Correlación'})
+# Ajustar el tamaño de la fuente de las anotaciones dinámicamente
+annot_font_size = 10 if len(matriz_correlacion) < 20 else 8 if len(matriz_correlacion) < 40 else 6
+# Decidir si mostrar anotaciones basado en el número de activos
+annot_bool = len(matriz_correlacion) < 50 # Mostrar anotaciones solo si hay menos de 50 activos
+
+sns.heatmap(matriz_correlacion, annot=annot_bool, fmt=".2f", cmap="coolwarm", vmin=-1, vmax=1,
+            square=True, linewidths=0.5, cbar_kws={'label': 'Correlación'}, annot_kws={'size': annot_font_size})
 plt.title("Matriz de Correlación entre Activos", fontsize=16, weight='bold')
 plt.xticks(rotation=45, ha='right')
 plt.yticks(rotation=0)
@@ -91,6 +96,7 @@ plt.tight_layout()
 plt.savefig(img_path)
 plt.close()
 print(f"✅ Imagen generada: {img_path}")
+
 # ==== Gráfico 2: Dendrograma ====
 from scipy.cluster.hierarchy import linkage, dendrogram
 dendro_path = os.path.join(CARPETA_SALIDA, 'dendrograma_clustering.png')
@@ -432,5 +438,7 @@ try:
     print(f"✅ PDF profesional generado en: {pdf_path}")
 except Exception as e:
     print(f"❌ Error al generar el PDF: {e}")
+
+
 
 
