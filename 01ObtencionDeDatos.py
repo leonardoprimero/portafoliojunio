@@ -20,9 +20,9 @@ FORMATO_EDITADO = False  # 🔁 CAMBIÁ ESTO A True PARA EXCEL FORMATEADO
     'Real Estate': ['PLD', 'AMT'],
     'Benchmark': ['SPY']
 }'''
-sectores={'Tikers': ['ETHA','IBIT','GLD','FXI','SMH','SPXL','XLU','CIBR','URA','IEUR','IBB','IVW','IVE','XLC','XLB','XLI','XLK','XLRE','XLF','XLP','XLV','XLY','VEA']}
-
-fecha_inicio = '2015-01-01'
+#sectores={'Tikers': ['ETHA','IBIT','GLD','FXI','SMH','SPXL','XLU','CIBR','URA','IEUR','IBB','IVW','IVE','XLC','XLB','XLI','XLK','XLRE','XLF','XLP','XLV','XLY','VEA']}
+sectores={'Tikers': ['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'JNJ', 'PFE', 'JPM', 'WFC', 'C', 'GS']}
+fecha_inicio = '2020-01-01'
 fecha_fin = '2025-06-16'
 
 # Ruta donde se guardarán los archivos
