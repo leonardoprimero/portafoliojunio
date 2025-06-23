@@ -28,11 +28,12 @@ def calcular_retornos_diarios_acumulados(
                     df.set_index("Date", inplace=True)
 
                     if logaritmico:
-                        df["Daily_Return"] = (df["Close"] / df["Close"].shift(1)).apply(lambda x: np.log(x))
+                        df["Daily_Return"] = np.log(df["Close"] / df["Close"].shift(1))
+                        df["Cumulative_Return"] = df["Daily_Return"].cumsum()
                     else:
                         df["Daily_Return"] = df["Close"].pct_change()
+                        df["Cumulative_Return"] = (1 + df["Daily_Return"]).cumprod() - 1
 
-                    df["Cumulative_Return"] = (1 + df["Daily_Return"]).cumprod() - 1
                     df_output = df[["Daily_Return", "Cumulative_Return"]].copy()
 
                     # Rolling acumulado (si querés seguir teniéndolo activable)

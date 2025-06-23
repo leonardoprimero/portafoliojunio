@@ -3,12 +3,12 @@ from analisis_retornos import calcular_retornos_diarios_acumulados
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL"]
-start_date = "2020-01-01"
+start_date = "2000-01-01"
 end_date = "2024-12-31"
 proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
 
 tema_grafico = "dark"          # Opciones: 'dark', 'vintage', 'modern', 'normal'
-retorno_logaritmico = False     # True para logarítmico, False para simple
+retorno_logaritmico = True     # True para logarítmico, False para simple
 
 activar_retornos_ventana = False
 ventanas_móviles = [5, 22, 252]  # Por defecto: semanal, mensual, anual
