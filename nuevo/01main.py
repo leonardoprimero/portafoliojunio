@@ -7,7 +7,8 @@ start_date = "2000-01-01"
 end_date = "2024-12-31"
 proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
 
-tema_grafico = "dark"          # Opciones: 'dark', 'vintage', 'modern', 'normal'
+#  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
+tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
 retorno_logaritmico = True     # True para logarítmico, False para simple
 
 activar_retornos_ventana = False
@@ -15,7 +16,20 @@ ventanas_móviles = [5, 22, 252]  # Por defecto: semanal, mensual, anual
 
 # Opcional: calcular retornos por bloque (semana/mes/año)
 calcular_retornos_por_periodo = True
-frecuencias_temporales = ["W-FRI", "M", "Y"]  # semanal, mensual, anual
+frecuencias_temporales = ["W-FRI", "ME", "YE"]  # semanal, mensual, anual
+
+# Configuración de referencias
+referencias_histograma = {
+    "media": True,
+    "sigma": True,
+    "mediana": True,
+    "p1": False,
+    "p10": False,
+    "p25": False,
+    "p75": False,
+    "p90": False,
+    "p99": False
+}
 
 # ------------------------------------------------
 
@@ -32,7 +46,8 @@ calcular_retornos_diarios_acumulados(
     calcular_rolling=activar_retornos_ventana,
     ventanas=ventanas_móviles,
     calcular_bloques=calcular_retornos_por_periodo,
-    frecuencias=frecuencias_temporales
+    frecuencias=frecuencias_temporales,
+    referencias_histograma=referencias_histograma
 )
 
 

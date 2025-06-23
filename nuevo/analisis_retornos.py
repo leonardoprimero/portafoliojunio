@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
-from generar_graficos import generar_grafico_retorno_acumulado
+from generar_graficos import generar_grafico_retorno_acumulado, generar_histograma_retorno
 
 def calcular_retornos_diarios_acumulados(
     carpeta_datos_limpios="DatosLimpios",
@@ -11,7 +11,8 @@ def calcular_retornos_diarios_acumulados(
     calcular_rolling=False,
     ventanas=[5, 22, 252],
     calcular_bloques=False,
-    frecuencias=["W-FRI", "M", "Y"]
+    frecuencias=["W-FRI", "ME", "YE"],
+    referencias_histograma=None   # <--- nuevo parámetro
 ):
     os.makedirs(carpeta_salida, exist_ok=True)
     print(f"\n📊 Calculando retornos diarios acumulados... (log: {logaritmico}, tema: {tema}, rolling: {calcular_rolling}, bloques: {calcular_bloques})")
@@ -21,7 +22,7 @@ def calcular_retornos_diarios_acumulados(
             if file.endswith(".csv"):
                 ticker = os.path.splitext(file)[0]
                 path_csv = os.path.join(root, file)
-                
+
                 try:
                     df = pd.read_csv(path_csv)
                     df["Date"] = pd.to_datetime(df["Date"])
@@ -36,7 +37,7 @@ def calcular_retornos_diarios_acumulados(
 
                     df_output = df[["Daily_Return", "Cumulative_Return"]].copy()
 
-                    # Rolling acumulado (si querés seguir teniéndolo activable)
+                    # Rolling acumulado
                     rolling_df = pd.DataFrame(index=df.index)
                     if calcular_rolling:
                         for window in ventanas:
@@ -44,7 +45,7 @@ def calcular_retornos_diarios_acumulados(
                             rolling_df[col_name] = (1 + df["Daily_Return"]).rolling(window).apply(np.prod, raw=True) - 1
                             df_output[col_name] = rolling_df[col_name]
 
-                    # Retornos por bloque de tiempo real (lo pro de verdad)
+                    # Retornos por bloque
                     retornos_bloque = {}
                     if calcular_bloques:
                         for freq in frecuencias:
@@ -68,6 +69,7 @@ def calcular_retornos_diarios_acumulados(
 
                     print(f"✅ Retornos procesados para {ticker} guardados en {output_path}")
 
+                    # GRAFICOS
                     generar_grafico_retorno_acumulado(
                         ticker,
                         df_output,
@@ -76,6 +78,19 @@ def calcular_retornos_diarios_acumulados(
                         logaritmico=logaritmico,
                         calcular_rolling=calcular_rolling,
                         ventanas=ventanas
+                    )
+
+                    # HISTOGRAMA
+                    # Siempre graficamos retornos diarios simples, aunque el análisis sea logarítmico
+                    df_hist = df.copy()
+                    df_hist["Daily_Return"] = df["Close"].pct_change()
+                    generar_histograma_retorno(
+                        ticker,
+                        df_hist,
+                        tema,
+                        carpeta_salida,
+                        bins=60,
+                        referencias=referencias_histograma   # <--- se pasa el diccionario
                     )
 
                 except Exception as e:
