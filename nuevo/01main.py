@@ -1,6 +1,7 @@
 from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos
+from generar_graficos import graficar_retorno_comparado # Importar la nueva función
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
@@ -8,6 +9,7 @@ descargar = False       # Descargar nuevos datos desde el proveedor
 limpiar = False         # Limpiar y transformar los datos crudos descargados
 analizar = False         # Realizar análisis y gráficos
 GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
+generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
 
 
 # ---------------- CONFIGURACIÓN ----------------
@@ -60,8 +62,17 @@ if analizar:
         referencias_histograma=referencias_histograma
     )
 
+if generar_comparativo:
+    graficar_retorno_comparado(
+        carpeta_datos_limpios="DatosLimpios", # Asumiendo que los datos limpios están aquí y tienen Daily_Return
+        tema=tema_grafico,
+        carpeta_salida_retornos="RetornoDiarioAcumulado"
+    )
+
 if GENERAR_PDF:
     generar_pdf_informe_por_activos(
         carpeta_imagenes="RetornoDiarioAcumulado",
         nombre_salida="informe_por_activos.pdf"
     )
+
+

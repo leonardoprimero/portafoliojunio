@@ -80,5 +80,25 @@ def generar_pdf_informe_por_activos(carpeta_imagenes="RetornoDiarioAcumulado", n
         c.showPage()
         numero_pagina += 1
 
+    # Añadir el gráfico de retorno comparado al final
+    comparative_graph_path = os.path.join(carpeta_imagenes, "retorno_comparado_bloomberg_dark.png") # Asumiendo el tema por defecto
+    if os.path.exists(comparative_graph_path):
+        c.setFont("Helvetica-Bold", 20)
+        c.drawCentredString(width / 2, height - 2.5 * cm, "Retorno Acumulado Comparado")
+        try:
+            img = ImageReader(comparative_graph_path)
+            iw, ih = img.getSize()
+            aspect = iw / ih
+            img_width = width - 4 * cm
+            img_height = img_width / aspect
+            c.drawImage(img, 2 * cm, height - 3 * cm - img_height, width=img_width, height=img_height)
+        except Exception as e:
+            print(f"⚠️ No se pudo agregar el gráfico comparativo: {e}")
+        agregar_pie_de_pagina(c, width, height, numero_pagina)
+        c.showPage()
+        numero_pagina += 1
+
     c.save()
     print(f"📄 PDF generado en: {nombre_salida}")
+
+

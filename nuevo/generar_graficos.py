@@ -101,7 +101,7 @@ def generar_grafico_retorno_acumulado(
     output_path = os.path.join(carpeta_salida, f"{ticker}_retorno_acumulado_{'log' if logaritmico else 'simple'}_{tema}.png")
     plt.savefig(output_path)
     plt.close()
-    print(f"✅ Gráfico de retorno acumulado para {ticker} ({'logarítmico' if logaritmico else 'simple'}, tema: {tema}) guardado en {output_path}")
+    print(f"✅ Gráfico de retorno acumulado para {ticker} ({'logarítmico' if logaritmico else 'simple'}\, tema: {tema}) guardado en {output_path}")
 
 
 def generar_histograma_retorno(
@@ -337,7 +337,7 @@ def generar_grafico_drawdown(ticker, df, tema="normal", carpeta_salida="RetornoD
 
     ax.scatter(fecha_min, valor_min, color=arrow_color, zorder=5)
     ax.annotate(
-        f'{valor_min:.2%}\n{fecha_min.strftime("%Y-%m-%d")}',
+        f'{valor_min:.2%}\n{fecha_min.strftime("%Y-%m-%d")}\"',
         xy=(fecha_min, valor_min),
         xytext=(fecha_min, valor_min + 0.1),
         arrowprops=dict(facecolor=arrow_color, arrowstyle="->"),
@@ -396,7 +396,7 @@ def generar_qq_plot(ticker, df, tema="normal", carpeta_salida="RetornoDiarioAcum
 
     plt.figure(figsize=(6, 6))
     stats.probplot(df["Daily_Return"].dropna(), dist="norm", plot=plt)
-    plt.title(f'Q-Q Plot - {ticker}', fontsize=14, color=title_color, fontweight="bold")
+    plt.title(f"Q-Q Plot - {ticker}", fontsize=14, color=title_color, fontweight="bold")
 
     output_path = os.path.join(carpeta_salida, f"{ticker}_qq_plot_{tema}.png")
     plt.savefig(output_path, bbox_inches="tight", dpi=300)
@@ -417,10 +417,10 @@ def test_jarque_bera(df, ticker, carpeta_salida="RetornoDiarioAcumulado"):
     # Guardar en txt
     os.makedirs(carpeta_salida, exist_ok=True)
     resumen = (
-        f"Jarque-Bera test para {ticker}\n"
-        f"Estadístico: {jb_stat:.4f}\n"
-        f"p-valor: {jb_p:.6f}\n"
-        f"Conclusión: {conclusion}\n"
+        f"Jarque-Bera test para {ticker}\\n"
+        f"Estadístico: {jb_stat:.4f}\\n"
+        f"p-valor: {jb_p:.6f}\\n"
+        f"Conclusión: {conclusion}\\n"
     )
     with open(os.path.join(carpeta_salida, f"{ticker}_jarque_bera.txt"), "w", encoding="utf-8") as f:
         f.write(resumen)
@@ -444,79 +444,151 @@ def generar_tabla_jarque_bera_imagen(resultados, carpeta_salida="RetornoDiarioAc
 
     os.makedirs(carpeta_salida, exist_ok=True)
 
-    # Estilo visual
+    # Configuración de estilo
     if tema == "bloomberg_dark":
         plt.style.use("dark_background")
         text_color = "white"
+        bg_color = "#222"
         header_color = "#333"
-        cell_color = "#111"
-    else:
+        row_colors = ["#2a2a2a", "#3a3a3a"]
+    elif tema == "modern_light":
         plt.style.use("default")
+        text_color = "#212529"
+        bg_color = "white"
+        header_color = "#f2f2f2"
+        row_colors = ["#ffffff", "#f9f9f9"]
+    else: # Default a seaborn
+        plt.style.use("seaborn-v0_8-darkgrid")
         text_color = "black"
-        header_color = "#ddd"
-        cell_color = "white"
+        bg_color = "white"
+        header_color = "#f2f2f2"
+        row_colors = ["#ffffff", "#f9f9f9"]
 
-    fig, ax = plt.subplots(figsize=(7, 0.6 * len(df) + 1))
+    fig, ax = plt.subplots(figsize=(8, 0.5 * len(df) + 1))
     ax.axis("off")
+    ax.axis("tight")
 
-    table = ax.table(
-        cellText=df.values,
-        colLabels=df.columns,
-        cellLoc="center",
-        loc="center"
-    )
-    table.auto_set_font_size(False)
-    table.set_fontsize(12)
-    table.scale(1.2, 1.2)
+    tabla = ax.table(cellText=df.values, colLabels=df.columns, loc='center', cellLoc='center')
 
-    for (i, j), cell in table.get_celld().items():
-        cell.set_edgecolor("gray")
-        if i == 0:
-            cell.set_facecolor(header_color)
-            cell.set_text_props(weight="bold", color=text_color)
-        else:
-            cell.set_facecolor(cell_color)
-            cell.set_text_props(color=text_color)
+    tabla.auto_set_font_size(False)
+    tabla.set_fontsize(10)
+    tabla.scale(1.2, 1.2)
 
-    path_img = os.path.join(carpeta_salida, "tabla_jarque_bera.png")
+    for (row, col), cell in tabla.get_celld().items():
+        cell.set_facecolor(header_color if row == 0 else row_colors[row % 2])
+        cell.set_text_props(color=text_color)
+        cell.set_edgecolor(text_color)
+
+    plt.title("Resultados del Test Jarque-Bera", fontsize=14, color=text_color, weight="bold")
     plt.tight_layout()
-    plt.savefig(path_img, dpi=300, bbox_inches="tight", transparent=True)
+
+    output_path = os.path.join(carpeta_salida, "tabla_jarque_bera.png")
+    plt.savefig(output_path, dpi=300, bbox_inches="tight", facecolor=bg_color)
     plt.close()
-    print(f"🧾 Imagen de tabla Jarque-Bera guardada en {path_img}")
+    print(f"🖼️ Tabla Jarque-Bera guardada en {output_path}")
 
-
-def generar_grafico_autocorrelacion(ticker, df, carpeta_salida="RetornoDiarioAcumulado", lags=20, tema="normal"):
-    import matplotlib.pyplot as plt
+def generar_grafico_autocorrelacion(
+    ticker, df, carpeta_salida="RetornoDiarioAcumulado", lags=20, tema="normal"
+):
     from statsmodels.graphics.tsaplots import plot_acf
-    import os
 
     os.makedirs(carpeta_salida, exist_ok=True)
 
-    # Estilo
     if tema == "bloomberg_dark":
         plt.style.use("dark_background")
+        line_color = "#2EE6FF"
+        marker_color = "#FFD700"
         title_color = "white"
-        tick_color = "white"
-        grid_color = "#444"
+    elif tema == "modern_light":
+        plt.style.use("default")
+        line_color = "#2460A7"
+        marker_color = "#63A375"
+        title_color = "#212529"
     else:
-        plt.style.use("seaborn-v0_8-whitegrid")
+        plt.style.use("seaborn-v0_8-darkgrid")
+        line_color = "#5a7bd7"
+        marker_color = "#fbc531"
         title_color = "black"
-        tick_color = "black"
-        grid_color = "#ccc"
 
-    fig, ax = plt.subplots(figsize=(9, 4))
-    plot_acf(df["Daily_Return"].dropna(), lags=lags, ax=ax, color="skyblue")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    plot_acf(df["Daily_Return"].dropna(), lags=lags, ax=ax, color=line_color, markerfacecolor=marker_color, markeredgecolor=line_color)
+    ax.set_title(f"Función de Autocorrelación (ACF) para {ticker}", fontsize=18, color=title_color, fontweight='bold')
+    ax.set_xlabel("Lags", fontsize=13)
+    ax.set_ylabel("Autocorrelación", fontsize=13)
+    ax.grid(True, alpha=0.15)
 
-    ax.set_title(f'Autocorrelación de retornos - {ticker}', fontsize=14, color=title_color, weight="bold")
-    ax.set_xlabel("Retardo (días)", fontsize=12, color=title_color)
-    ax.set_ylabel("Coef. de autocorrelación", fontsize=12, color=title_color)
-
-    ax.tick_params(colors=tick_color)
-    ax.grid(True, color=grid_color, linestyle="--", alpha=0.4)
-
-    output_path = os.path.join(carpeta_salida, f"{ticker}_autocorrelacion.png")
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=300)
+    output_path = os.path.join(carpeta_salida, f"{ticker}_autocorrelacion_{tema}.png")
+    plt.savefig(output_path)
     plt.close()
+    print(f"✅ Gráfico de autocorrelación para {ticker} guardado en {output_path}")
 
-    print(f"🔁 ACF plot guardado en {output_path}")
+def graficar_retorno_comparado(
+    carpeta_datos_limpios="DatosLimpios",
+    carpeta_salida_retornos="RetornoDiarioAcumulado",
+    tema="bloomberg_dark"
+):
+    import os
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    modos = [
+        (False, "Lineal", "retorno_comparado_lineal", False),
+        (True, "Logarítmica", "retorno_comparado_log", True)
+    ]
+
+    for modo_log, etiqueta, nombre_archivo, ylog in modos:
+        dfs = []
+        nombres = []
+        for archivo_excel in os.listdir(carpeta_salida_retornos):
+            if archivo_excel.endswith(".xlsx") and "ratios_completos" not in archivo_excel:
+                ticker = archivo_excel.replace(".xlsx", "")
+                path_excel = os.path.join(carpeta_salida_retornos, archivo_excel)
+                try:
+                    sheet = "Retorno Diario (log)" if modo_log else "Retorno Diario (lineal)"
+                    df = pd.read_excel(path_excel, sheet_name=sheet, index_col=0, parse_dates=True)
+                    if "Cumulative_Return" in df.columns:
+                        if modo_log:
+                            # LOGARÍTMICO: crecimiento capital = exp(acumulado log)
+                            serie = np.exp(df["Cumulative_Return"].dropna())
+                        else:
+                            # LINEAL: crecimiento capital = 1 + acumulado simple
+                            serie = 1 + df["Cumulative_Return"].dropna()
+                        # Normalizá base 1
+                        serie = serie / serie.iloc[0]
+                        dfs.append(serie)
+                        nombres.append(ticker)
+                    else:
+                        print(f"⚠️ {ticker} no tiene columna Cumulative_Return en {sheet}")
+                except Exception as e:
+                    print(f"⚠️ No se pudo leer el archivo {archivo_excel} para el gráfico comparativo: {e}")
+
+        if not dfs:
+            print(f"❌ No se encontraron datos válidos para generar el gráfico comparativo {etiqueta}.")
+            continue
+
+        df_final = pd.concat(dfs, axis=1)
+        df_final.columns = nombres
+
+        if tema == "bloomberg_dark":
+            plt.style.use("dark_background")
+        else:
+            plt.style.use("seaborn")
+
+        plt.figure(figsize=(14, 7))
+        for col in df_final.columns:
+            plt.plot(df_final.index, df_final[col], label=col)
+
+        plt.title(f"Retorno Acumulado Comparado ({etiqueta})", fontsize=22)
+        plt.xlabel("Fecha")
+        plt.ylabel("Crecimiento (Base 1)")
+        plt.legend()
+        plt.grid(True, which="both", axis="y", alpha=0.3)
+        plt.tight_layout()
+        if ylog:
+            plt.yscale("log")
+
+        output_path = os.path.join(carpeta_salida_retornos, f"{nombre_archivo}_{tema}.png")
+        plt.savefig(output_path, dpi=300)
+        plt.close()
+        print(f"✅ Gráfico de retorno comparado {etiqueta.lower()} guardado en {output_path}")
