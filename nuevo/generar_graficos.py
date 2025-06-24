@@ -422,8 +422,9 @@ def test_jarque_bera(df, ticker, carpeta_salida="RetornoDiarioAcumulado"):
         f"p-valor: {jb_p:.6f}\n"
         f"Conclusión: {conclusion}\n"
     )
-    with open(os.path.join(carpeta_salida, f"{ticker}_jarque_bera.txt"), "w") as f:
+    with open(os.path.join(carpeta_salida, f"{ticker}_jarque_bera.txt"), "w", encoding="utf-8") as f:
         f.write(resumen)
+
 
     print(f"📋 Test Jarque-Bera ({ticker}): {conclusion}")
     return jb_stat, jb_p, conclusion

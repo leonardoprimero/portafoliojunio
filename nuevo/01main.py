@@ -1,10 +1,14 @@
 from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
+from generar_pdf import generar_pdf_informe_por_activos
+
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = True       # Descargar nuevos datos desde el proveedor
-limpiar = True         # Limpiar y transformar los datos crudos descargados
-analizar = True         # Realizar análisis y gráficos
+descargar = False       # Descargar nuevos datos desde el proveedor
+limpiar = False         # Limpiar y transformar los datos crudos descargados
+analizar = False         # Realizar análisis y gráficos
+GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
+
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL"]
@@ -14,7 +18,7 @@ proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
 
 #  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
 tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
-retorno_logaritmico = True     # True para logarítmico, False para simple
+retornos_a_mostrar = ["log", "lineal"]  # podés usar: ["log"], ["lineal"] o ambos
 
 
 activar_retornos_ventana = False
@@ -48,10 +52,16 @@ if analizar:
         carpeta_datos_limpios="DatosLimpios",
         carpeta_salida="RetornoDiarioAcumulado",
         tema=tema_grafico,
-        logaritmico=retorno_logaritmico,
+        tipos_retornos=retornos_a_mostrar,
         calcular_rolling=activar_retornos_ventana,
         ventanas=ventanas_móviles,
         calcular_bloques=calcular_retornos_por_periodo,
         frecuencias=frecuencias_temporales,
         referencias_histograma=referencias_histograma
+    )
+
+if GENERAR_PDF:
+    generar_pdf_informe_por_activos(
+        carpeta_imagenes="RetornoDiarioAcumulado",
+        nombre_salida="informe_por_activos.pdf"
     )
