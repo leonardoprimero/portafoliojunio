@@ -2,8 +2,8 @@ from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = False       # Descargar nuevos datos desde el proveedor
-limpiar = False         # Limpiar y transformar los datos crudos descargados
+descargar = True       # Descargar nuevos datos desde el proveedor
+limpiar = True         # Limpiar y transformar los datos crudos descargados
 analizar = True         # Realizar análisis y gráficos
 
 # ---------------- CONFIGURACIÓN ----------------
