@@ -1,16 +1,17 @@
 from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos
-from generar_graficos import graficar_retorno_comparado # Importar la nueva función
+from generar_graficos import graficar_retorno_comparado
+from analisis_correlaciones import calcular_matriz_correlacion
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = False       # Descargar nuevos datos desde el proveedor
-limpiar = False         # Limpiar y transformar los datos crudos descargados
-analizar = False         # Realizar análisis y gráficos
+descargar = True       # Descargar nuevos datos desde el proveedor
+limpiar = True         # Limpiar y transformar los datos crudos descargados
+analizar = True         # Realizar análisis y gráficos
 GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
 generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
-
+generar_correlaciones = True
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL"]
@@ -75,4 +76,11 @@ if GENERAR_PDF:
         nombre_salida="informe_por_activos.pdf"
     )
 
-
+if generar_correlaciones:
+    calcular_matriz_correlacion(
+        carpeta_datos_limpios="DatosLimpios",
+        carpeta_salida="Correlaciones",
+        metodo="pearson",         # o "spearman"
+        tema=tema_grafico,
+        extension_salida="xlsx"
+    )
