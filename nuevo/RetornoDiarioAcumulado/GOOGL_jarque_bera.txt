@@ -1,1 +1,1 @@
-Jarque-Bera test para GOOGL\nEstadístico: 18178.0951\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para GOOGL\nEstadístico: 18178.1151\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

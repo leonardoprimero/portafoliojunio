@@ -1,1 +1,1 @@
-Jarque-Bera test para KO\nEstadístico: 23973.2649\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para KO\nEstadístico: 23973.1727\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

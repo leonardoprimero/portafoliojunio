@@ -7,6 +7,12 @@ from graficos_correlacion import (
     plot_rolling_correlation_lines
 )
 
+# ----------- CONFIGURACIÓN BENCHMARK Y FILTRO ----------- #
+USAR_BENCHMARK = True        # True: el benchmark NO entra en matriz/rolling, solo se usa para análisis especial
+BENCHMARK_TICKER = "SPY"    # Cambiá por el ticker que quieras (por ej. "QQQ", "^GSPC", "MERV", etc)
+BENCHMARK_COMO_ACTIVO = False  # True: el benchmark también entra como un activo más en matrices/rolling
+# -------------
+
 def calcular_matriz_correlacion(
     carpeta_datos_limpios="DatosLimpios",
     carpeta_salida="Correlaciones",
@@ -44,6 +50,10 @@ def calcular_matriz_correlacion(
                 tickers_ok.append(ticker)
             except Exception as e:
                 errores.append(f"❌ Error leyendo {ticker}: {e}")
+                
+            if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+                if BENCHMARK_TICKER in tickers_ok:
+                    tickers_ok.remove(BENCHMARK_TICKER)
 
     if not dfs:
         print("❌ No se pudo calcular la matriz de correlaciones: no hay activos válidos.")
@@ -54,6 +64,10 @@ def calcular_matriz_correlacion(
     df_retornos = pd.concat(dfs, axis=1)
     df_retornos = df_retornos.loc[:, tickers_ok]
     df_retornos = df_retornos.dropna(how='all', axis=0)
+    
+    if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+        if BENCHMARK_TICKER in df_retornos.columns:
+            df_retornos = df_retornos.drop(columns=[BENCHMARK_TICKER])
 
     if df_retornos.shape[1] < 2:
         print("❌ Se necesitan al menos dos activos válidos para calcular correlación.")
@@ -134,6 +148,10 @@ def calcular_correlaciones_rolling(
                 tickers_ok.append(ticker)
             except Exception as e:
                 errores.append(f"❌ Error leyendo {ticker}: {e}")
+                
+            if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+                if BENCHMARK_TICKER in tickers_ok:
+                    tickers_ok.remove(BENCHMARK_TICKER)
 
     if not dfs:
         print("❌ No se pudo calcular correlaciones rolling: no hay activos válidos.")
@@ -144,6 +162,10 @@ def calcular_correlaciones_rolling(
     df_retornos = pd.concat(dfs, axis=1)
     df_retornos = df_retornos.loc[:, tickers_ok]
     df_retornos = df_retornos.dropna(how='all', axis=0)
+    
+    if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+        if BENCHMARK_TICKER in df_retornos.columns:
+            df_retornos = df_retornos.drop(columns=[BENCHMARK_TICKER])
 
     if len(df_retornos) < ventana:
         print(f"❌ No hay suficientes datos ({len(df_retornos)} filas) para calcular correlaciones rolling con ventana de {ventana} días.")

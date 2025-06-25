@@ -1,1 +1,1 @@
-Jarque-Bera test para UNH\nEstadístico: 168571.1368\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para UNH\nEstadístico: 168572.8018\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

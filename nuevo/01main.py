@@ -11,9 +11,9 @@ limpiar = False         # Limpiar y transformar los datos crudos descargados
 analizar = False         # Realizar análisis y gráficos
 GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
 generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = False
-generar_clustermap = False  # En la mtariz de correlación
-mostrar_dendrograma = False
+generar_correlaciones = True
+generar_clustermap = True  # En la mtariz de correlación
+mostrar_dendrograma = True
 
 # Nueva configuración para correlaciones rolling
 generar_correlaciones_rolling = True
@@ -24,7 +24,7 @@ pares_especificos = []  # Por default vacío. Si querés pares, descomentá la l
 
 
 # ---------------- CONFIGURACIÓN ----------------
-tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE"]
+tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
 start_date = "2000-01-01"
 end_date = "2024-12-31"
 proveedor = "yahoo"   # \'alphavantage\', \'tiingo\' , \'yahoo\'

@@ -1,1 +1,1 @@
-Jarque-Bera test para MSFT\nEstadístico: 23974.3674\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para MSFT\nEstadístico: 23974.0852\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
