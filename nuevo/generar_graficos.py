@@ -294,6 +294,46 @@ def calcular_drawdown(df):
     fecha_max_drawdown = df["Drawdown"].idxmin()
     return df, max_drawdown, fecha_max_drawdown
 
+def generar_grafico_volumen(ticker, df, tema="normal", carpeta_salida="RetornoDiarioAcumulado"):
+    import matplotlib.dates as mdates
+
+    os.makedirs(carpeta_salida, exist_ok=True)
+
+    if tema == "bloomberg_dark":
+        plt.style.use("dark_background")
+        color = "#2EE6FF"
+        grid_alpha = 0.15
+        title_color = "white"
+    elif tema == "modern_light":
+        plt.style.use("default")
+        color = "#2460A7"
+        grid_alpha = 0.1
+        title_color = "#212529"
+    else:
+        plt.style.use("seaborn-v0_8-darkgrid")
+        color = "#5a7bd7"
+        grid_alpha = 0.13
+        title_color = "black"
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.bar(df.index, df["Volume"], color=color, width=1.0)
+
+    ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+
+    plt.title(f"Volumen de Trading para {ticker}", fontsize=16, color=title_color, fontweight="bold")
+    plt.xlabel("Fecha")
+    plt.ylabel("Volumen")
+    plt.grid(True, alpha=grid_alpha)
+
+    output_path = os.path.join(carpeta_salida, f"{ticker}_volumen_{tema}.png")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    plt.close()
+
+    print(f"📊 Gráfico de volumen para {ticker} guardado en {output_path}")
+
+
 def generar_grafico_drawdown(ticker, df, tema="normal", carpeta_salida="RetornoDiarioAcumulado"):
     import matplotlib.dates as mdates
 

@@ -11,7 +11,7 @@ limpiar = True         # Limpiar y transformar los datos crudos descargados
 analizar = True         # Realizar análisis y gráficos
 GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
 generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = True
+generar_correlaciones = False
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL"]

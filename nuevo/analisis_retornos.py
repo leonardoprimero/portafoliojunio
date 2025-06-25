@@ -7,7 +7,7 @@ from generar_graficos import (
     calcular_drawdown,
     generar_grafico_drawdown,
     exportar_y_graficar_ratios,
-    generar_qq_plot,
+    generar_qq_plot, generar_grafico_volumen,
     test_jarque_bera,
     generar_tabla_jarque_bera_imagen,
     generar_grafico_autocorrelacion
@@ -46,6 +46,7 @@ def calcular_retornos_diarios_acumulados(
 
                     df["Daily_Return_log"] = np.log(df["Close"] / df["Close"].shift(1))
                     df["Cumulative_Return_log"] = df["Daily_Return_log"].cumsum()
+                    generar_grafico_volumen(ticker, df, tema=tema, carpeta_salida=carpeta_salida)
 
                     mean_return = df["Daily_Return_lineal"].mean()
                     std_return = df["Daily_Return_lineal"].std()
