@@ -6,15 +6,18 @@ from analisis_correlaciones import calcular_matriz_correlacion
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = True       # Descargar nuevos datos desde el proveedor
-limpiar = True         # Limpiar y transformar los datos crudos descargados
-analizar = True         # Realizar análisis y gráficos
-GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
-generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = False
+descargar = False       # Descargar nuevos datos desde el proveedor
+limpiar = False         # Limpiar y transformar los datos crudos descargados
+analizar = False         # Realizar análisis y gráficos
+GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
+generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
+generar_correlaciones = True
+generar_clustermap = True  # En la mtariz de correlación
+mostrar_dendrograma = False
+
 
 # ---------------- CONFIGURACIÓN ----------------
-tickers = ["AAPL", "MSFT", "GOOGL"]
+tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE"]
 start_date = "2000-01-01"
 end_date = "2024-12-31"
 proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
@@ -82,5 +85,7 @@ if generar_correlaciones:
         carpeta_salida="Correlaciones",
         metodo="pearson",         # o "spearman"
         tema=tema_grafico,
-        extension_salida="xlsx"
+        extension_salida="xlsx",
+        generar_clustermap=generar_clustermap,
+        mostrar_dendrograma=mostrar_dendrograma
     )

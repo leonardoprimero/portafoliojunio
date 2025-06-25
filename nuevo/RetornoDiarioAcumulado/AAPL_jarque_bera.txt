@@ -1,0 +1,1 @@
+Jarque-Bera test para AAPL\nEstadístico: 353638.4206\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
