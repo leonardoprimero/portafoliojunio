@@ -33,6 +33,11 @@ charts_profesionales/
 resultados_profesionales/
 todosdatos/
 DatosCartera/
+nuevo/Correlaciones/
+nuevo/CorrelacionesRolling/
+nuevo/DatosCrudos/
+nuevo/DatosLimpios/
+nuevo/RetornoDiarioAcumulado/
 
 
 # Excel y PDF generados
