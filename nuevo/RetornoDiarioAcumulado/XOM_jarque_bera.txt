@@ -1,1 +1,1 @@
-Jarque-Bera test para XOM\nEstadístico: 21492.6965\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para XOM\nEstadístico: 21492.7758\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

@@ -2,7 +2,7 @@ from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos
 from generar_graficos import graficar_retorno_comparado
-from analisis_correlaciones import calcular_matriz_correlacion
+from analisis_correlaciones import calcular_matriz_correlacion, calcular_correlaciones_rolling, graficar_pares_rolling_especificos
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
@@ -11,19 +11,26 @@ limpiar = False         # Limpiar y transformar los datos crudos descargados
 analizar = False         # Realizar análisis y gráficos
 GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
 generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = True
-generar_clustermap = True  # En la mtariz de correlación
+generar_correlaciones = False
+generar_clustermap = False  # En la mtariz de correlación
 mostrar_dendrograma = False
+
+# Nueva configuración para correlaciones rolling
+generar_correlaciones_rolling = True
+ventana_rolling = 60 # Días para la ventana móvil
+solo_graficar_pares = True     # Si está en True, solo corre la parte de graficar pares específicos
+pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
+#pares_especificos = ['''"AAPL-MSFT", "GOOGL-NVDA"''']  
 
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE"]
 start_date = "2000-01-01"
 end_date = "2024-12-31"
-proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
+proveedor = "yahoo"   # \'alphavantage\', \'tiingo\' , \'yahoo\'
 
 #  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
-tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
+tema_grafico = "bloomberg_dark"         # \'dark\', \'vintage\', \'modern\', \'normal\'
 retornos_a_mostrar = ["log", "lineal"]  # podés usar: ["log"], ["lineal"] o ambos
 
 
@@ -89,3 +96,23 @@ if generar_correlaciones:
         generar_clustermap=generar_clustermap,
         mostrar_dendrograma=mostrar_dendrograma
     )
+
+if generar_correlaciones_rolling:
+    calcular_correlaciones_rolling(
+        carpeta_datos_limpios="DatosLimpios",
+        carpeta_salida="CorrelacionesRolling",
+        metodo="pearson",            # o "spearman"
+        ventana=ventana_rolling,
+        tema=tema_grafico,
+        top_n_pares_mas_volatiles=2  # <--- Cambiá este número según lo que quieras
+    )
+    
+
+graficar_pares_rolling_especificos(
+    carpeta_salida="CorrelacionesRolling",
+    metodo="pearson",
+    ventana=ventana_rolling,
+    tema=tema_grafico,
+    pares_especificos=pares_especificos
+)
+

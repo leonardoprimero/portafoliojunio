@@ -1,1 +1,1 @@
-Jarque-Bera test para WMT\nEstadístico: 19305.7320\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
+Jarque-Bera test para WMT\nEstadístico: 19305.7310\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
