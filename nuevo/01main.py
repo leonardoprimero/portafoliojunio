@@ -22,27 +22,33 @@ from analisis_correlacion_sectores import (
     guardar_excel_sectorial
 )
 from rich.progress import Progress
+from analisis_cartera import markowitz_simulacion
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = True       # Descargar nuevos datos desde el proveedor
-limpiar = True         # Limpiar y transformar los datos crudos descargados
-analizar = True         # Realizar análisis y gráficos
-GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
-generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = True
-generar_clustermap = True  # En la mtariz de correlación
-mostrar_dendrograma = True
+descargar = False       # Descargar nuevos datos desde el proveedor
+limpiar = False         # Limpiar y transformar los datos crudos descargados
+analizar = False         # Realizar análisis y gráficos
+GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
+generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
+generar_correlaciones = False
+generar_clustermap = False  # En la mtariz de correlación
+mostrar_dendrograma = False
 
 # Nueva configuración para correlaciones rolling
-generar_correlaciones_rolling = True
+generar_correlaciones_rolling = False
 ventana_rolling = 60 # Días para la ventana móvil
-solo_graficar_pares = True     # Si está en True, solo corre la parte de graficar pares específicos
+solo_graficar_pares = False     # Si está en True, solo corre la parte de graficar pares específicos
 pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
 #pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
-generar_pca = True
+generar_pca = False
 
 # Bandera para generar el informe de correlaciones en PDF
-generar_pdf_correlaciones = True  
+generar_pdf_correlaciones = False  
+
+##-----------AHORA SI ANALISIS PORTAFOLIO---------------##
+
+simular_cartera = True  # Activalo o desactivalo
+n_iteraciones = 8000
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
@@ -84,7 +90,8 @@ acciones = [
     ("Matriz de correlaciones", generar_correlaciones),
     ("Rolling correlations", generar_correlaciones_rolling),
     ("Análisis PCA", generar_pca),
-    ("PDF correlaciones", generar_pdf_correlaciones)
+    ("PDF correlaciones", generar_pdf_correlaciones),
+    ("Simulación cartera Monte Carlo", simular_cartera)
 ]
 
 with Progress() as progress:
@@ -193,5 +200,15 @@ with Progress() as progress:
             carpeta_correlaciones="Correlaciones",
             carpeta_rolling="CorrelacionesRolling",
             pares_especificos=pares_especificos
+        )
+        progress.advance(tarea)
+    
+    if simular_cartera:
+        markowitz_simulacion(
+            tickers=tickers,
+            carpeta_datos_limpios="DatosLimpios",
+            n_iter=n_iteraciones,   # ← Lo seleccionás desde el main
+            carpeta_salida="Montecarlo",
+            tema="modern_light"  # Cambiá por "bloomberg_dark", "modern_light", "nyu_quant", "classic_white"
         )
         progress.advance(tarea)
