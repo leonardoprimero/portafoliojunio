@@ -23,6 +23,8 @@ from analisis_correlacion_sectores import (
 )
 from rich.progress import Progress
 from analisis_cartera import markowitz_simulacion
+from backtest_portafolio import analizar_portafolio_optimo
+
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
 descargar = False       # Descargar nuevos datos desde el proveedor
@@ -50,13 +52,14 @@ generar_pdf_correlaciones = False
 ##   MONTECARLO 
 
 simular_cartera = True  # Activalo o desactivalo
-n_iteraciones = 80000
+n_iteraciones = 8000
 capital_usd = 100000
 peso_min = 0.05   # 5%
 peso_max = 0.25   # 25%
 USAR_BENCHMARK = True
 BENCHMARK_TICKER = "SPY"
 BENCHMARK_COMO_ACTIVO = False
+hacer_backtest = True
 
 
 # ---------------- CONFIGURACIÓN ----------------
@@ -104,7 +107,8 @@ acciones = [
     ("Rolling correlations", generar_correlaciones_rolling),
     ("Análisis PCA", generar_pca),
     ("PDF correlaciones", generar_pdf_correlaciones),
-    ("Simulación cartera Monte Carlo", simular_cartera)
+    ("Simulación cartera Monte Carlo", simular_cartera),
+    ("Backtesting portafolio óptimo", hacer_backtest)
 ]
 
 with Progress() as progress:
@@ -217,7 +221,7 @@ with Progress() as progress:
         progress.advance(tarea)
     
     if simular_cartera:
-        markowitz_simulacion(
+        datosTickers, port_opt = markowitz_simulacion(        
             tickers=tickers_portafolio,
             carpeta_datos_limpios="DatosLimpios",
             n_iter=n_iteraciones,   # ← Lo seleccionás desde el main
@@ -229,5 +233,16 @@ with Progress() as progress:
             usar_benchmark=USAR_BENCHMARK,
             benchmark_ticker=BENCHMARK_TICKER,
             benchmark_como_activo=BENCHMARK_COMO_ACTIVO
+        )
+    if hacer_backtest:
+        analizar_portafolio_optimo(
+            port_opt["pesos"],
+            tickers_portafolio,          # lista SIN el benchmark (como en tu simulación)
+            benchmark=BENCHMARK_TICKER,  # tu benchmark, ej: "SPY"
+            capital=capital_usd,
+            carpeta="DatosLimpios",
+            plot=False,
+            save=True,
+            carpeta_salida="BacktestPortafolio"                    
         )
         progress.advance(tarea)
