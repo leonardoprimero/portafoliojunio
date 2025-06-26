@@ -7,13 +7,13 @@ from datetime import datetime
 import os
 import glob
 
-def generar_portada(c, tickers, width, height):
+def generar_portada(c, titulo, width, height):
     c.setFillColor(white)
     c.rect(0, 0, width, height, fill=1)
 
     c.setFillColor(black)
     c.setFont("Helvetica-Bold", 22)
-    c.drawCentredString(width / 2, height - 5 * cm, "Informe por Activos")
+    c.drawCentredString(width / 2, height - 5 * cm, titulo)
 
     c.setFont("Helvetica", 12)
     c.drawCentredString(width / 2, height - 6 * cm, "Estudio Martinez.")
@@ -38,22 +38,33 @@ def agregar_pie_de_pagina(c, width, height, numero_pagina):
     c.drawCentredString(width / 2, 1.2 * cm, "leocaliva.com")
     c.drawRightString(width - 2 * cm, 1.2 * cm, f"Página {numero_pagina}")
 
+def agregar_imagen(c, img_path, width, height, numero_pagina):
+    try:
+        img = ImageReader(img_path)
+        iw, ih = img.getSize()
+        aspect = iw / ih
+        img_width = width - 4 * cm
+        img_height = img_width / aspect
+        if img_height > height - 4 * cm:
+            img_height = height - 4 * cm
+            img_width = img_height * aspect
+        c.drawImage(img, (width - img_width) / 2, (height - img_height) / 2, width=img_width, height=img_height)
+    except Exception as e:
+        print(f"⚠️ No se pudo agregar {img_path}: {e}")
+    agregar_pie_de_pagina(c, width, height, numero_pagina)
+    c.showPage()
+
 def generar_pdf_informe_por_activos(carpeta_imagenes="RetornoDiarioAcumulado", nombre_salida="informe_por_activos.pdf"):
     c = canvas.Canvas(nombre_salida, pagesize=A4)
     width, height = A4
-
     tickers = sorted(list(set([os.path.basename(f).split("_")[0] for f in os.listdir(carpeta_imagenes) if f.endswith(".png")])))
-
-    generar_portada(c, tickers, width, height)
+    generar_portada(c, "Informe por Activos", width, height)
     c.showPage()
-
     numero_pagina = 1
     for ticker in tickers:
         c.setFont("Helvetica-Bold", 20)
         c.drawCentredString(width / 2, height - 2.5 * cm, f"Análisis del activo: {ticker}")
-
         imagenes = sorted(glob.glob(f"{carpeta_imagenes}/{ticker}_*.png"))
-
         y = height - 4 * cm
         for img_path in imagenes:
             try:
@@ -62,7 +73,6 @@ def generar_pdf_informe_por_activos(carpeta_imagenes="RetornoDiarioAcumulado", n
                 aspect = iw / ih
                 img_width = width - 4 * cm
                 img_height = img_width / aspect
-
                 if y - img_height < 2.5 * cm:
                     agregar_pie_de_pagina(c, width, height, numero_pagina)
                     c.showPage()
@@ -70,35 +80,73 @@ def generar_pdf_informe_por_activos(carpeta_imagenes="RetornoDiarioAcumulado", n
                     y = height - 3 * cm
                     c.setFont("Helvetica-Bold", 20)
                     c.drawCentredString(width / 2, height - 2.5 * cm, f"Análisis del activo: {ticker}")
-
                 c.drawImage(img, 2 * cm, y - img_height, width=img_width, height=img_height)
                 y -= img_height + 1.5 * cm
             except Exception as e:
                 print(f"⚠️ No se pudo agregar {img_path}: {e}")
-
         agregar_pie_de_pagina(c, width, height, numero_pagina)
         c.showPage()
         numero_pagina += 1
-
-    # Añadir el gráfico de retorno comparado al final
-    comparative_graph_path = os.path.join(carpeta_imagenes, "retorno_comparado_bloomberg_dark.png") # Asumiendo el tema por defecto
+    comparative_graph_path = os.path.join(carpeta_imagenes, "retorno_comparado_bloomberg_dark.png")
     if os.path.exists(comparative_graph_path):
         c.setFont("Helvetica-Bold", 20)
         c.drawCentredString(width / 2, height - 2.5 * cm, "Retorno Acumulado Comparado")
-        try:
-            img = ImageReader(comparative_graph_path)
-            iw, ih = img.getSize()
-            aspect = iw / ih
-            img_width = width - 4 * cm
-            img_height = img_width / aspect
-            c.drawImage(img, 2 * cm, height - 3 * cm - img_height, width=img_width, height=img_height)
-        except Exception as e:
-            print(f"⚠️ No se pudo agregar el gráfico comparativo: {e}")
-        agregar_pie_de_pagina(c, width, height, numero_pagina)
-        c.showPage()
+        agregar_imagen(c, comparative_graph_path, width, height, numero_pagina)
         numero_pagina += 1
-
     c.save()
     print(f"📄 PDF generado en: {nombre_salida}")
 
+def generar_pdf_informe_correlaciones(nombre_salida="informe_correlaciones.pdf", carpeta_correlaciones="Correlaciones", carpeta_rolling="CorrelacionesRolling", pares_especificos=None):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    import os
+    import glob
 
+    c = canvas.Canvas(nombre_salida, pagesize=A4)
+    width, height = A4
+    generar_portada(c, "Informe de Correlaciones", width, height)
+    c.showPage()
+    numero_pagina = 1
+
+    nombres_agregados = set()
+
+    # 📊 Matriz de correlaciones (evita duplicados)
+    graficos_correlacion = sorted(glob.glob(f"{carpeta_correlaciones}/*correlacion*png"))
+    for img_path in graficos_correlacion:
+        nombre_archivo = os.path.basename(img_path)
+        if nombre_archivo not in nombres_agregados:
+            agregar_imagen(c, img_path, width, height, numero_pagina)
+            numero_pagina += 1
+            nombres_agregados.add(nombre_archivo)
+
+    # 📈 Heatmap sectorial
+    graficos_sectoriales = sorted(glob.glob(f"{carpeta_correlaciones}/heatmap_correlacion_sectores*.png"))
+    for img_path in graficos_sectoriales:
+        nombre_archivo = os.path.basename(img_path)
+        if nombre_archivo not in nombres_agregados:
+            agregar_imagen(c, img_path, width, height, numero_pagina)
+            numero_pagina += 1
+            nombres_agregados.add(nombre_archivo)
+
+    # 📉 Rolling general
+    rolling_generales = sorted(glob.glob(f"{carpeta_rolling}/correlaciones_rolling_lineas*topvar*.png"))
+    for img_path in rolling_generales:
+        nombre_archivo = os.path.basename(img_path)
+        if nombre_archivo not in nombres_agregados:
+            agregar_imagen(c, img_path, width, height, numero_pagina)
+            numero_pagina += 1
+            nombres_agregados.add(nombre_archivo)
+
+    # 🎯 Pares específicos
+    if pares_especificos:
+        for idx, par in enumerate(pares_especificos):
+            img_path = os.path.join(carpeta_rolling, f"correlaciones_rolling_lineas_pearson_60d_bloomberg_dark_parte_{idx}.png")
+            if os.path.exists(img_path):
+                nombre_archivo = os.path.basename(img_path)
+                if nombre_archivo not in nombres_agregados:
+                    agregar_imagen(c, img_path, width, height, numero_pagina)
+                    numero_pagina += 1
+                    nombres_agregados.add(nombre_archivo)
+
+    c.save()
+    print(f"📄 PDF de correlaciones generado en: {nombre_salida}")
