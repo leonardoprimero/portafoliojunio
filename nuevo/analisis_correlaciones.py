@@ -272,3 +272,54 @@ def graficar_pares_rolling_especificos(
         print("No se graficó ningún par. ¿Seguro que escribiste bien los nombres?")
 
     return
+
+def calcular_metricas_resumen_correlacion(matriz):
+    valores = matriz.values.flatten()
+    valores = valores[~np.isnan(valores)]
+    valores = valores[valores != 1]  # excluimos la diagonal
+    resumen = {
+        "Media": np.mean(valores),
+        "Desviacion Std": np.std(valores),
+        "% pares > 0.75": np.mean(valores > 0.75) * 100,
+        "% pares < -0.5": np.mean(valores < -0.5) * 100,
+        "Máximo": np.max(valores),
+        "Mínimo": np.min(valores)
+    }
+    return resumen
+
+def guardar_metricas_resumen(resumen, carpeta_salida, nombre="resumen_metricas_correlacion.csv"):
+    os.makedirs(carpeta_salida, exist_ok=True)
+    df = pd.DataFrame(resumen, index=[0])
+    path = os.path.join(carpeta_salida, nombre)
+    df.to_csv(path, index=False)
+    print(f"📊 Métricas resumen guardadas en {path}")
+
+
+def calcular_estabilidad_rolling(df_rolling_correlations):
+    resumen = df_rolling_correlations.describe().T
+    resumen = resumen[["mean", "std"]].dropna()
+    resumen["coef_estabilidad"] = resumen["std"] / resumen["mean"].abs()
+    resumen = resumen.sort_values("coef_estabilidad", ascending=False)
+    return resumen
+
+def guardar_estabilidad_rolling(resumen_estabilidad, carpeta_salida, metodo, ventana):
+    os.makedirs(carpeta_salida, exist_ok=True)
+    path = os.path.join(carpeta_salida, f"estabilidad_rolling_{metodo}_{ventana}d.csv")
+    resumen_estabilidad.to_csv(path)
+    print(f"📈 Estabilidad de correlaciones rolling guardada en {path}")
+
+
+def ranking_correlaciones_extremas(matriz, top_n=10):
+    df = matriz.stack().reset_index()
+    df.columns = ["Activo 1", "Activo 2", "Correlacion"]
+    df = df[df["Activo 1"] != df["Activo 2"]]  # excluir la diagonal
+    df = df.dropna()
+    top_pos = df.sort_values("Correlacion", ascending=False).head(top_n)
+    top_neg = df.sort_values("Correlacion", ascending=True).head(top_n)
+    return top_pos, top_neg
+
+def guardar_rankings_extremos(top_pos, top_neg, carpeta_salida):
+    os.makedirs(carpeta_salida, exist_ok=True)
+    top_pos.to_csv(os.path.join(carpeta_salida, "pares_mas_correlacionados.csv"), index=False)
+    top_neg.to_csv(os.path.join(carpeta_salida, "pares_menos_correlacionados.csv"), index=False)
+    print("📌 Rankings extremos guardados")

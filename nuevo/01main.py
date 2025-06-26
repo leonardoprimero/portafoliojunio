@@ -2,18 +2,27 @@ from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos
 from generar_graficos import graficar_retorno_comparado
-from analisis_correlaciones import calcular_matriz_correlacion, calcular_correlaciones_rolling, graficar_pares_rolling_especificos
-
+from analisis_correlaciones import (
+    calcular_matriz_correlacion,
+    calcular_correlaciones_rolling,
+    graficar_pares_rolling_especificos,
+    calcular_metricas_resumen_correlacion,
+    guardar_metricas_resumen,
+    ranking_correlaciones_extremas,
+    guardar_rankings_extremos,
+    calcular_estabilidad_rolling,
+    guardar_estabilidad_rolling
+)
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = True       # Descargar nuevos datos desde el proveedor
-limpiar = True         # Limpiar y transformar los datos crudos descargados
-analizar = True         # Realizar análisis y gráficos
-GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
-generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = True
-generar_clustermap = True  # En la mtariz de correlación
-mostrar_dendrograma = True
+descargar = False       # Descargar nuevos datos desde el proveedor
+limpiar = False         # Limpiar y transformar los datos crudos descargados
+analizar = False         # Realizar análisis y gráficos
+GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
+generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
+generar_correlaciones = False
+generar_clustermap = False  # En la mtariz de correlación
+mostrar_dendrograma = False
 
 # Nueva configuración para correlaciones rolling
 generar_correlaciones_rolling = True
@@ -27,12 +36,11 @@ pares_especificos = []  # Por default vacío. Si querés pares, descomentá la l
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
 start_date = "2000-01-01"
 end_date = "2024-12-31"
-proveedor = "yahoo"   # \'alphavantage\', \'tiingo\' , \'yahoo\'
+proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
 
 #  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
-tema_grafico = "bloomberg_dark"         # \'dark\', \'vintage\', \'modern\', \'normal\'
+tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
 retornos_a_mostrar = ["log", "lineal"]  # podés usar: ["log"], ["lineal"] o ambos
-
 
 activar_retornos_ventana = False
 ventanas_móviles = [5, 22, 252]  # Por defecto: semanal, mensual, anual
@@ -87,7 +95,7 @@ if GENERAR_PDF:
     )
 
 if generar_correlaciones:
-    calcular_matriz_correlacion(
+    matriz_cluster = calcular_matriz_correlacion(
         carpeta_datos_limpios="DatosLimpios",
         carpeta_salida="Correlaciones",
         metodo="pearson",         # o "spearman"
@@ -97,8 +105,15 @@ if generar_correlaciones:
         mostrar_dendrograma=mostrar_dendrograma
     )
 
+    # 👇 NUEVO: análisis extendido si hay matriz
+    if matriz_cluster is not None:
+        resumen = calcular_metricas_resumen_correlacion(matriz_cluster)
+        guardar_metricas_resumen(resumen, carpeta_salida="Correlaciones")
+        top_pos, top_neg = ranking_correlaciones_extremas(matriz_cluster)
+        guardar_rankings_extremos(top_pos, top_neg, carpeta_salida="Correlaciones")
+
 if generar_correlaciones_rolling:
-    calcular_correlaciones_rolling(
+    df_rolling_correlations = calcular_correlaciones_rolling(
         carpeta_datos_limpios="DatosLimpios",
         carpeta_salida="CorrelacionesRolling",
         metodo="pearson",            # o "spearman"
@@ -106,7 +121,16 @@ if generar_correlaciones_rolling:
         tema=tema_grafico,
         top_n_pares_mas_volatiles=2  # <--- Cambiá este número según lo que quieras
     )
-    
+
+    # 👇 NUEVO: estabilidad rolling
+    if df_rolling_correlations is not None:
+        resumen_estabilidad = calcular_estabilidad_rolling(df_rolling_correlations)
+        guardar_estabilidad_rolling(
+            resumen_estabilidad,
+            carpeta_salida="CorrelacionesRolling",
+            metodo="pearson",
+            ventana=ventana_rolling
+        )
 
 graficar_pares_rolling_especificos(
     carpeta_salida="CorrelacionesRolling",
@@ -115,4 +139,3 @@ graficar_pares_rolling_especificos(
     tema=tema_grafico,
     pares_especificos=pares_especificos
 )
-
