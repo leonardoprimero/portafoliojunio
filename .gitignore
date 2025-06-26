@@ -38,6 +38,8 @@ nuevo/CorrelacionesRolling/
 nuevo/DatosCrudos/
 nuevo/DatosLimpios/
 nuevo/RetornoDiarioAcumulado/
+nuevo/PCA
+nuevo/Montecarlo
 
 
 # Excel y PDF generados
