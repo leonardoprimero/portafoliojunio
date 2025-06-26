@@ -96,7 +96,7 @@ def generar_pdf_informe_por_activos(carpeta_imagenes="RetornoDiarioAcumulado", n
     c.save()
     print(f"📄 PDF generado en: {nombre_salida}")
 
-def generar_pdf_informe_correlaciones(nombre_salida="informe_correlaciones.pdf", carpeta_correlaciones="Correlaciones", carpeta_rolling="CorrelacionesRolling", pares_especificos=None):
+def generar_pdf_informe_correlaciones(nombre_salida="informe_correlaciones.pdf", carpeta_correlaciones="Correlaciones", carpeta_rolling="CorrelacionesRolling", pares_especificos=None, carpeta_pca="PCA"):
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
     import os
@@ -147,6 +147,14 @@ def generar_pdf_informe_correlaciones(nombre_salida="informe_correlaciones.pdf",
                     agregar_imagen(c, img_path, width, height, numero_pagina)
                     numero_pagina += 1
                     nombres_agregados.add(nombre_archivo)
+
+    # 🧬 PCA
+    img_pca = os.path.join(carpeta_pca, "pca_retorno_2D.png")
+    if os.path.exists(img_pca):
+        nombre_archivo = os.path.basename(img_pca)
+        if nombre_archivo not in nombres_agregados:
+            agregar_imagen(c, img_pca, width, height, numero_pagina)
+            numero_pagina += 1
 
     c.save()
     print(f"📄 PDF de correlaciones generado en: {nombre_salida}")

@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import numpy as np
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
 from graficos_correlacion import (
     plot_clustermap_correlacion,
     plot_clustered_heatmap_sin_dendrograma,
@@ -323,3 +325,54 @@ def guardar_rankings_extremos(top_pos, top_neg, carpeta_salida):
     top_pos.to_csv(os.path.join(carpeta_salida, "pares_mas_correlacionados.csv"), index=False)
     top_neg.to_csv(os.path.join(carpeta_salida, "pares_menos_correlacionados.csv"), index=False)
     print("📌 Rankings extremos guardados")
+
+def ejecutar_pca_sobre_retornos(carpeta_datos_limpios="DatosLimpios", carpeta_salida="PCA", n_componentes=2, tema="default"):
+  
+    os.makedirs(carpeta_salida, exist_ok=True)
+    dfs = []
+    tickers = []
+
+    for root, _, files in os.walk(carpeta_datos_limpios):
+        for archivo in files:
+            if archivo.endswith(".csv"):
+                path = os.path.join(root, archivo)
+                df = pd.read_csv(path)
+                if "Close" not in df.columns:
+                    continue
+                df["Date"] = pd.to_datetime(df["Date"])
+                df.set_index("Date", inplace=True)
+                ticker = archivo.replace(".csv", "")
+                retornos = df["Close"].pct_change().dropna()
+                dfs.append(retornos.rename(ticker))
+                tickers.append(ticker)
+
+    df_retornos = pd.concat(dfs, axis=1).dropna()
+    X = (df_retornos - df_retornos.mean()) / df_retornos.std()
+
+    # PCA
+    pca = PCA(n_components=n_componentes)
+    X_pca = pca.fit_transform(X.T)
+    explained = pca.explained_variance_ratio_ * 100
+
+    # Gráfico profesional
+    plt.figure(figsize=(12, 10))
+    plt.style.use("default")
+    ax = plt.gca()
+    ax.set_facecolor("whitesmoke")
+    ax.grid(True, linestyle="--", alpha=0.3)
+
+    scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], s=120, alpha=0.85, color="royalblue", edgecolors="black", linewidths=0.5)
+
+    for i, nombre in enumerate(df_retornos.columns):
+        plt.text(X_pca[i, 0] + 1.8, X_pca[i, 1] + 1.8, nombre, fontsize=10, weight="bold", color="black")
+
+    plt.xlabel(f"Componente Principal 1 ({explained[0]:.1f}%)", fontsize=13)
+    plt.ylabel(f"Componente Principal 2 ({explained[1]:.1f}%)", fontsize=13)
+    plt.title("PCA de Retornos Estandarizados\n(Matriz de Correlación entre Activos)", fontsize=16, weight="bold")
+    plt.tight_layout()
+
+    out_path = os.path.join(carpeta_salida, "pca_retorno_2D.png")
+    plt.savefig(out_path, dpi=300)
+    plt.close()
+
+    print(f"📊 PCA guardado en: {out_path}")

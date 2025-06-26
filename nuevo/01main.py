@@ -11,7 +11,8 @@ from analisis_correlaciones import (
     ranking_correlaciones_extremas,
     guardar_rankings_extremos,
     calcular_estabilidad_rolling,
-    guardar_estabilidad_rolling
+    guardar_estabilidad_rolling,
+    ejecutar_pca_sobre_retornos
 )
 from analisis_correlacion_sectores import (
     cargar_matriz_correlacion,
@@ -33,14 +34,15 @@ generar_clustermap = False  # En la mtariz de correlación
 mostrar_dendrograma = False
 
 # Nueva configuración para correlaciones rolling
-generar_correlaciones_rolling = True
+generar_correlaciones_rolling = False
 ventana_rolling = 60 # Días para la ventana móvil
-solo_graficar_pares = True     # Si está en True, solo corre la parte de graficar pares específicos
-#pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
-pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
+solo_graficar_pares = False     # Si está en True, solo corre la parte de graficar pares específicos
+pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
+#pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
+generar_pca = True
 
 # Bandera para generar el informe de correlaciones en PDF
-generar_pdf_correlaciones = True
+generar_pdf_correlaciones = False  
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
@@ -81,6 +83,7 @@ acciones = [
     ("Generar PDF activos", GENERAR_PDF),
     ("Matriz de correlaciones", generar_correlaciones),
     ("Rolling correlations", generar_correlaciones_rolling),
+    ("Análisis PCA", generar_pca),
     ("PDF correlaciones", generar_pdf_correlaciones)
 ]
 
@@ -167,6 +170,15 @@ with Progress() as progress:
         ventana=ventana_rolling,
         tema=tema_grafico,
         pares_especificos=pares_especificos
+    )
+    if generar_pca:
+        ejecutar_pca_sobre_retornos(
+        carpeta_datos_limpios="DatosLimpios",
+        carpeta_salida="PCA",
+        n_componentes=2,
+        tema=tema_grafico
+    )
+    progress.advance(tarea
     )
 
     if generar_pdf_correlaciones:
