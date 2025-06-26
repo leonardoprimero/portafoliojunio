@@ -24,25 +24,25 @@ from analisis_correlacion_sectores import (
 from rich.progress import Progress
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = False       # Descargar nuevos datos desde el proveedor
-limpiar = False         # Limpiar y transformar los datos crudos descargados
-analizar = False         # Realizar análisis y gráficos
-GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
-generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = False
-generar_clustermap = False  # En la mtariz de correlación
-mostrar_dendrograma = False
+descargar = True       # Descargar nuevos datos desde el proveedor
+limpiar = True         # Limpiar y transformar los datos crudos descargados
+analizar = True         # Realizar análisis y gráficos
+GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
+generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
+generar_correlaciones = True
+generar_clustermap = True  # En la mtariz de correlación
+mostrar_dendrograma = True
 
 # Nueva configuración para correlaciones rolling
-generar_correlaciones_rolling = False
+generar_correlaciones_rolling = True
 ventana_rolling = 60 # Días para la ventana móvil
-solo_graficar_pares = False     # Si está en True, solo corre la parte de graficar pares específicos
+solo_graficar_pares = True     # Si está en True, solo corre la parte de graficar pares específicos
 pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
 #pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
 generar_pca = True
 
 # Bandera para generar el informe de correlaciones en PDF
-generar_pdf_correlaciones = False  
+generar_pdf_correlaciones = True  
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]

@@ -2,6 +2,8 @@ import os
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from graficos_correlacion import (
     plot_clustermap_correlacion,
