@@ -47,8 +47,17 @@ generar_pdf_correlaciones = False
 
 ##-----------AHORA SI ANALISIS PORTAFOLIO---------------##
 
+##   MONTECARLO 
+
 simular_cartera = True  # Activalo o desactivalo
-n_iteraciones = 8000
+n_iteraciones = 80000
+capital_usd = 100000
+peso_min = 0.05   # 5%
+peso_max = 0.25   # 25%
+USAR_BENCHMARK = True
+BENCHMARK_TICKER = "SPY"
+BENCHMARK_COMO_ACTIVO = False
+
 
 # ---------------- CONFIGURACIÓN ----------------
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
@@ -78,6 +87,10 @@ referencias_histograma = {
     "p90": False,
     "p99": False
 }
+if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+    tickers_portafolio = [t for t in tickers if t != BENCHMARK_TICKER]
+else:
+    tickers_portafolio = tickers
 
 # ---------------- EJECUCIÓN DE ACCIONES ----------------
 
@@ -205,10 +218,16 @@ with Progress() as progress:
     
     if simular_cartera:
         markowitz_simulacion(
-            tickers=tickers,
+            tickers=tickers_portafolio,
             carpeta_datos_limpios="DatosLimpios",
             n_iter=n_iteraciones,   # ← Lo seleccionás desde el main
             carpeta_salida="Montecarlo",
-            tema="modern_light"  # Cambiá por "bloomberg_dark", "modern_light", "nyu_quant", "classic_white"
+            tema="modern_light",  # Cambiá por "bloomberg_dark", "modern_light", "nyu_quant", "classic_white"
+            capital_usd=capital_usd,
+            peso_min=peso_min,
+            peso_max=peso_max,
+            usar_benchmark=USAR_BENCHMARK,
+            benchmark_ticker=BENCHMARK_TICKER,
+            benchmark_como_activo=BENCHMARK_COMO_ACTIVO
         )
         progress.advance(tarea)
