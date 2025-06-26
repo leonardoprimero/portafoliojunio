@@ -1,1 +1,0 @@
-Jarque-Bera test para PFE\nEstadístico: 6419.7948\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

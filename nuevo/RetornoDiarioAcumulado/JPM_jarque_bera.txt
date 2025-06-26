@@ -1,1 +1,0 @@
-Jarque-Bera test para JPM\nEstadístico: 65383.1202\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n

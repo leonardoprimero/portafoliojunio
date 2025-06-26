@@ -1,1 +1,0 @@
-Jarque-Bera test para NVDA\nEstadístico: 38522.1597\np-valor: 0.000000\nConclusión: ⚠️ Se rechaza H₀: no hay normalidad\n
