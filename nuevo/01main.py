@@ -6,11 +6,11 @@ from analisis_correlaciones import calcular_matriz_correlacion, calcular_correla
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = False       # Descargar nuevos datos desde el proveedor
-limpiar = False         # Limpiar y transformar los datos crudos descargados
-analizar = False         # Realizar análisis y gráficos
-GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
-generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
+descargar = True       # Descargar nuevos datos desde el proveedor
+limpiar = True         # Limpiar y transformar los datos crudos descargados
+analizar = True         # Realizar análisis y gráficos
+GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
+generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
 generar_correlaciones = True
 generar_clustermap = True  # En la mtariz de correlación
 mostrar_dendrograma = True
