@@ -54,6 +54,7 @@ nuevo/BackTesting_*/
 !nuevo/datosgenerales/Clientes/*.xlsx
 !nuevo/datosgenerales/*.csv
 !nuevo/datosgenerales/*.jpg
+!nuevo/datosgenerales/*.png
 
 # Config VSCode
 .vscode/
