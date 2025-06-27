@@ -52,6 +52,8 @@ nuevo/BackTesting_*/
 *.png
 # ...excepto los de la carpeta Clientes (permite solo ahí)
 !nuevo/datosgenerales/Clientes/*.xlsx
+!nuevo/datosgenerales/*.csv
+!nuevo/datosgenerales/*.jpg
 
 # Config VSCode
 .vscode/
