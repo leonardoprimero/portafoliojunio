@@ -29,11 +29,16 @@ peso_max = 0.25
 USAR_BENCHMARK = True
 BENCHMARK_TICKER = "SPY"
 BENCHMARK_COMO_ACTIVO = False
-hacer_backtest = False
+
+
+hacer_backtest = True
+GENERAR_PDF_BACKTEST = True
 hacer_backtest_iguales = True
+GENERAR_PDF_BACKTEST = True
 hacer_backtest_real = True
 carpeta_clientes = "datosgenerales/Clientes"
 dni_filtrar = None
+GENERAR_PDF_BACKTEST = True
 
 # ---- Parámetros generales ----
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE", "SPY"]

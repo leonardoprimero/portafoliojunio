@@ -408,6 +408,7 @@ def BackTestingReal(
     resumen.to_csv(f"{carpeta_salida}/resumen_metricas.csv")
     print(f"🟢 Todos los gráficos y métricas guardados en: {carpeta_salida}/")
     print(f"🟢 Backtest real para {nombre} {apellido} guardado en: {carpeta_salida}/")
+    return nombre, apellido, carpeta_salida, fecha_inicio
 
 def calcular_metricas_portafolio(retornos, rf=0.00, freq=252):
     ann_ret = (1 + retornos).prod()**(freq/len(retornos)) - 1

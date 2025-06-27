@@ -1,8 +1,9 @@
 from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
-from generar_pdf import generar_pdf_informe_por_activos, generar_pdf_informe_correlaciones
+from generar_pdf import generar_pdf_informe_por_activos, generar_pdf_informe_correlaciones, generar_pdf_backtesting
 from generar_graficos import graficar_retorno_comparado
 import pandas as pd
+from datetime import datetime
 import glob, os
 from aaaconfig_usuario import *
 from analisis_correlaciones import (
@@ -66,14 +67,17 @@ from backtest_portafolio import (backtest_profesional, buscar_archivo_portafolio
 # BENCHMARK_TICKER = "SPY"
 # BENCHMARK_COMO_ACTIVO = False
 # hacer_backtest = True 
+# GENERAR_PDF_BACKTEST = True
 # hacer_backtest_iguales = True
+# GENERAR_PDF_BACKTEST = True
 # hacer_backtest_real = True
 # carpeta_clientes = "datosgenerales/Clientes"
 # dni_filtrar = 33428871
+# GENERAR_PDF_BACKTEST = True
 
 
 
-# ---------------- CONFIGURACIÓN ----------------
+## ---------------- CONFIGURACIÓN ----------------
 # tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
 # start_date = "2000-01-01"
 # end_date = "2024-12-31"
@@ -90,7 +94,7 @@ from backtest_portafolio import (backtest_profesional, buscar_archivo_portafolio
 # calcular_retornos_por_periodo = False
 # frecuencias_temporales = ["W-FRI", "ME", "YE"]  # semanal, mensual, anual
 
-# referencias_histograma = {
+# #referencias_histograma = {
 #     "media": True,
 #     "sigma": True,
 #     "mediana": True,
@@ -266,6 +270,14 @@ with Progress() as progress:
             capital=capital_usd
         )
         progress.advance(tarea)
+    if GENERAR_PDF_BACKTEST:
+        from generar_pdf import generar_pdf_backtesting
+        generar_pdf_backtesting(
+            carpeta_imagenes="BacktestPortafolioPro",
+            nombre_salida="BacktestPortafolioPro/informe_backtesting_optimo.pdf",
+            titulo="Informe Backtesting Portafolio Óptimo"
+        )
+        progress.advance(tarea)
         
     if hacer_backtest_iguales:
         backtest_equal_weight(
@@ -276,13 +288,29 @@ with Progress() as progress:
             capital=capital_usd
         )
         progress.advance(tarea)
+    if GENERAR_PDF_BACKTEST:
+        from generar_pdf import generar_pdf_backtesting
+        generar_pdf_backtesting(
+            carpeta_imagenes="BackTestingPortafolioIguales",
+            nombre_salida="BackTestingPortafolioIguales/informe_backtesting_igual.pdf",
+            titulo="Informe Backtesting Portafolio Igual"
+        )
+        progress.advance(tarea)
         
 if hacer_backtest_real:
     if dni_filtrar:
         path_cliente = buscar_cliente_por_dni_email(dni=dni_filtrar)
         if path_cliente:
             print(f"🟢 Procesando solo cliente con DNI {dni_filtrar}: {os.path.basename(path_cliente)}")
-            BackTestingReal(excel_path=path_cliente)
+            nombre, apellido, nombre_carpeta, fecha_inicio = BackTestingReal(excel_path=path_cliente)
+            if GENERAR_PDF:
+                generar_pdf_backtesting(
+                    carpeta_imagenes=nombre_carpeta,
+                    nombre_salida=f"{nombre_carpeta}/informe_backtesting_cliente.pdf",
+                    titulo=f"Cartera de {nombre} {apellido}",
+                    subtitulo=f"{fecha_inicio.strftime('%d/%m/%Y')} a {datetime.today().strftime('%d/%m/%Y')}",
+                    path_fondo="datosgenerales/hojaMembretada.jpg"   # Cambia a None si NO querés membretada
+                )
         else:
             print(f"😕 No hemos encontrado ese DNI ({dni_filtrar}). ¿Querés probar con el email? (s/n)")
             opcion = input().strip().lower()
@@ -291,7 +319,15 @@ if hacer_backtest_real:
                 path_cliente = buscar_cliente_por_dni_email(email=email_buscar)
                 if path_cliente:
                     print(f"🟢 Procesando solo cliente con email {email_buscar}: {os.path.basename(path_cliente)}")
-                    BackTestingReal(excel_path=path_cliente)
+                    nombre, apellido, nombre_carpeta, fecha_inicio = BackTestingReal(excel_path=path_cliente)
+                    if GENERAR_PDF_BACKTEST:
+                        generar_pdf_backtesting(
+                            carpeta_imagenes=nombre_carpeta,
+                            nombre_salida=f"{nombre_carpeta}/informe_backtesting_cliente.pdf",
+                            titulo=f"Cartera de {nombre} {apellido}",
+                            subtitulo=f"{fecha_inicio.strftime('%d/%m/%Y')} a {datetime.today().strftime('%d/%m/%Y')}",
+                            path_fondo="datosgenerales/hojaMembretada.jpg"
+                        )
                 else:
                     print(f"❌ Tampoco encontramos ese email ({email_buscar}). Revisa bien los datos.")
             else:
@@ -300,4 +336,12 @@ if hacer_backtest_real:
         excels_clientes = glob.glob(os.path.join(carpeta_clientes, "*.xlsx"))
         for excel_path in excels_clientes:
             print(f"Procesando backtest real para: {os.path.basename(excel_path)}")
-            BackTestingReal(excel_path=excel_path)
+            nombre, apellido, nombre_carpeta, fecha_inicio = BackTestingReal(excel_path=excel_path)
+            if GENERAR_PDF_BACKTEST:
+                generar_pdf_backtesting(
+                    carpeta_imagenes=nombre_carpeta,
+                    nombre_salida=f"{nombre_carpeta}/informe_backtesting_cliente.pdf",
+                    titulo=f"Cartera de {nombre} {apellido}",
+                    subtitulo=f"{fecha_inicio.strftime('%d/%m/%Y')} a {datetime.today().strftime('%d/%m/%Y')}",
+                    path_fondo="datosgenerales/hojaMembretada.jpg"
+                )
