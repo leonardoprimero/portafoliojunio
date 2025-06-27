@@ -2,6 +2,7 @@ from descarga_datos import descargar_datos, limpiar_datos_crudos
 from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos, generar_pdf_informe_correlaciones
 from generar_graficos import graficar_retorno_comparado
+import pandas as pd
 from analisis_correlaciones import (
     calcular_matriz_correlacion,
     calcular_correlaciones_rolling,
@@ -23,7 +24,7 @@ from analisis_correlacion_sectores import (
 )
 from rich.progress import Progress
 from analisis_cartera import markowitz_simulacion
-from backtest_portafolio import analizar_portafolio_optimo
+from backtest_portafolio import backtest_profesional, buscar_archivo_portafolio 
 
 
 # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
@@ -51,7 +52,7 @@ generar_pdf_correlaciones = False
 
 ##   MONTECARLO 
 
-simular_cartera = True  # Activalo o desactivalo
+simular_cartera = False  # Activalo o desactivalo
 n_iteraciones = 8000
 capital_usd = 100000
 peso_min = 0.05   # 5%
@@ -218,15 +219,15 @@ with Progress() as progress:
             carpeta_rolling="CorrelacionesRolling",
             pares_especificos=pares_especificos
         )
-        progress.advance(tarea)
+        
     
     if simular_cartera:
-        datosTickers, port_opt = markowitz_simulacion(        
+        datosTickers, port_opt = markowitz_simulacion(
             tickers=tickers_portafolio,
             carpeta_datos_limpios="DatosLimpios",
-            n_iter=n_iteraciones,   # ← Lo seleccionás desde el main
+            n_iter=n_iteraciones,
             carpeta_salida="Montecarlo",
-            tema="modern_light",  # Cambiá por "bloomberg_dark", "modern_light", "nyu_quant", "classic_white"
+            tema="modern_light",
             capital_usd=capital_usd,
             peso_min=peso_min,
             peso_max=peso_max,
@@ -234,15 +235,22 @@ with Progress() as progress:
             benchmark_ticker=BENCHMARK_TICKER,
             benchmark_como_activo=BENCHMARK_COMO_ACTIVO
         )
+        pesos_opt = port_opt["pesos"]   # <--- ¡Siempre definí pesos_opt!
+
+    if not simular_cartera and hacer_backtest:
+        archivo_opt = buscar_archivo_portafolio()
+        print(f"🟢 Usando archivo de pesos óptimos: {archivo_opt}")
+        df_opt = pd.read_excel(archivo_opt)
+        fila_opt = df_opt[df_opt["Tipo"].str.contains("Sharpe", case=False)].iloc[0]
+        pesos_opt = [fila_opt[f"{t} (%)"] for t in tickers_portafolio]
+
     if hacer_backtest:
-        analizar_portafolio_optimo(
-            port_opt["pesos"],
-            tickers_portafolio,          # lista SIN el benchmark (como en tu simulación)
-            benchmark=BENCHMARK_TICKER,  # tu benchmark, ej: "SPY"
-            capital=capital_usd,
+        backtest_profesional(
+            pesos=pesos_opt,                # <--- ¡SIEMPRE llamá con pesos_opt!
+            tickers=tickers_portafolio,
+            benchmark=BENCHMARK_TICKER,
             carpeta="DatosLimpios",
-            plot=False,
-            save=True,
-            carpeta_salida="BacktestPortafolio"                    
+            carpeta_salida="BacktestPortafolioPro",
+            capital=capital_usd
         )
         progress.advance(tarea)

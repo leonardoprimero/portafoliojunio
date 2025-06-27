@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
-import os
+import os, glob
 import matplotlib.pyplot as plt
+import seaborn as sns
+from marcadeagua import agregar_marca_agua
 
 def cargar_datos(tickers, carpeta="DatosLimpios"):
     dfs = []
@@ -20,6 +22,153 @@ def cargar_datos(tickers, carpeta="DatosLimpios"):
         dfs.append(df)
     return pd.concat(dfs, axis=1).sort_index()
 
+def backtest_profesional(
+    pesos, tickers, benchmark="SPY", carpeta="DatosLimpios",
+    carpeta_salida="BacktestPortafolioPro", capital=100_000
+):
+    os.makedirs(carpeta_salida, exist_ok=True)
+
+    # === Cargar datos y calcular retornos ===
+    data = cargar_datos(tickers + [benchmark], carpeta)
+    data = data.dropna()
+    retornos = np.log(data / data.shift(1)).dropna()
+    ret_port = (retornos[tickers] * pesos).sum(axis=1)
+    ret_bench = retornos[benchmark]
+
+    curva_port = capital * (1 + ret_port).cumprod()
+    curva_bench = capital * (1 + ret_bench).cumprod()
+
+    # === Gráfico 1: Cumulative Returns ===
+    plt.style.use("seaborn-v0_8-darkgrid")
+    plt.figure(figsize=(10, 4))
+    plt.plot(curva_port, label="Portafolio", lw=2.2)
+    plt.plot(curva_bench, label="Benchmark", ls="--", lw=2)
+    plt.ylabel('Valor acumulado')
+    plt.title('Cumulative Returns')
+    plt.legend()
+    plt.tight_layout()
+    fig = plt.gcf()
+    agregar_marca_agua(
+        fig,
+        "datosgenerales/logo1.jpg",   # PNG transparente recomendado
+        texto="leocaliva.com",
+        reps_x=9,          # Ajustá para más o menos pattern
+        reps_y=7,
+        alpha_logo=0.10,
+        alpha_text=0.08,
+        size_factor=0.06,  # Tamaño chico
+        font_size=15
+    )
+    plt.savefig(f"{carpeta_salida}/cumulative_returns.png", dpi=260, bbox_inches="tight")
+    plt.close()
+
+    # === Gráfico 2: Cumulative Returns (log) ===
+    plt.figure(figsize=(10, 4))
+    plt.plot(np.log(curva_port), label="Portafolio", lw=2.2)
+    plt.plot(np.log(curva_bench), label="Benchmark", ls="--", lw=2)
+    plt.ylabel('Log Valor acumulado')
+    plt.title('Cumulative Returns (Log Scale)')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/cumulative_returns_log.png", dpi=250)
+    plt.close()
+
+    # === Gráfico 3: Rolling Volatility ===
+    window = 126  # 6 meses hábiles
+    rolling_vol_port = ret_port.rolling(window).std() * np.sqrt(252)
+    rolling_vol_bench = ret_bench.rolling(window).std() * np.sqrt(252)
+    plt.figure(figsize=(10, 4))
+    plt.plot(rolling_vol_port, label="Portafolio")
+    plt.plot(rolling_vol_bench, label="Benchmark", ls="--")
+    plt.ylabel('Volatilidad anualizada')
+    plt.title('Rolling Volatility (6M)')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/rolling_volatility.png", dpi=250)
+    plt.close()
+
+    # === Gráfico 4: Rolling Sharpe Ratio ===
+    rolling_sharpe = (ret_port.rolling(window).mean() / ret_port.rolling(window).std()) * np.sqrt(252)
+    plt.figure(figsize=(10, 4))
+    plt.plot(rolling_sharpe, color='teal', label='Rolling Sharpe (6M)')
+    plt.axhline(rolling_sharpe.mean(), ls='--', color='grey', label='Media')
+    plt.ylabel('Sharpe Ratio')
+    plt.title('Rolling Sharpe Ratio (6M)')
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/rolling_sharpe.png", dpi=250)
+    plt.close()
+
+    # === Gráfico 5: Underwater Plot ===
+    cum = (1 + ret_port).cumprod()
+    roll_max = cum.cummax()
+    drawdown = cum / roll_max - 1
+    plt.figure(figsize=(10, 4))
+    plt.fill_between(drawdown.index, drawdown, 0, color='tomato', alpha=0.5)
+    plt.title('Underwater Plot (Drawdown)')
+    plt.ylabel('Drawdown')
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/underwater_plot.png", dpi=250)
+    plt.close()
+
+    # === Gráfico 6: Monthly Returns Heatmap ===
+    df_month = ret_port.resample('M').apply(lambda x: (x + 1).prod() - 1)
+    df_pivot = df_month.to_frame("ret").reset_index()
+    df_pivot["Year"] = df_pivot["Date"].dt.year
+    df_pivot["Month"] = df_pivot["Date"].dt.month
+    tabla = df_pivot.pivot(index="Year", columns="Month", values="ret")
+    plt.figure(figsize=(9, 4))
+    sns.heatmap(tabla, annot=True, fmt=".1%", center=0, cmap="RdYlGn", cbar=False)
+    plt.title("Monthly Returns (%)")
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/monthly_returns_heatmap.png", dpi=250)
+    plt.close()
+
+    # === Gráfico 7: Annual Returns ===
+    df_annual = ret_port.resample('Y').apply(lambda x: (x + 1).prod() - 1)
+    df_annual.index = df_annual.index.year  # Pone solo el año como índice
+
+    plt.figure(figsize=(12, 5))
+    bars = plt.bar(df_annual.index.astype(str), df_annual.values, color="#1e88e5", alpha=0.87)
+    plt.ylabel("Retorno anual", fontsize=15, weight="bold")
+    plt.xlabel("Año", fontsize=14)
+    plt.title("Annual Returns", fontsize=17, weight="bold", pad=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=13)
+    plt.axhline(df_annual.mean(), color="orange", ls="--", lw=2, label="Promedio")
+    plt.legend(fontsize=13, loc="best")
+
+    # Opcional: etiqueta los valores arriba de cada barra
+    for bar in bars:
+        yval = bar.get_height()
+        plt.text(bar.get_x() + bar.get_width()/2.0, yval, f"{yval:.0%}", va='bottom', ha='center', fontsize=12, fontweight='bold')
+
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/annual_returns.png", dpi=280)
+    plt.close()
+
+
+    # === Gráfico 8: Return Quantiles ===
+    q = pd.DataFrame({
+        "Daily": ret_port,
+        "Weekly": ret_port.resample('W').apply(lambda x: (x+1).prod()-1),
+        "Monthly": ret_port.resample('M').apply(lambda x: (x+1).prod()-1)
+    })
+    plt.figure(figsize=(8, 4))
+    sns.boxplot(data=q, orient="h")
+    plt.title("Return Quantiles")
+    plt.tight_layout()
+    plt.savefig(f"{carpeta_salida}/return_quantiles.png", dpi=250)
+    plt.close()
+
+    # ===== Exportar métricas principales =====
+    met_port = calcular_metricas_portafolio(ret_port)
+    met_bench = calcular_metricas_portafolio(ret_bench)
+    resumen = pd.DataFrame([met_port, met_bench], index=["Portafolio óptimo", benchmark]).T
+    resumen.to_excel(f"{carpeta_salida}/resumen_metricas.xlsx")
+    resumen.to_csv(f"{carpeta_salida}/resumen_metricas.csv")
+    print(f"🟢 Todos los gráficos y métricas guardados en: {carpeta_salida}/")
+
 def calcular_metricas_portafolio(retornos, rf=0.00, freq=252):
     ann_ret = (1 + retornos).prod()**(freq/len(retornos)) - 1
     ann_vol = retornos.std() * np.sqrt(freq)
@@ -37,85 +186,15 @@ def calcular_metricas_portafolio(retornos, rf=0.00, freq=252):
         "Calmar": calmar,
         "Meses positivos": (retornos.resample('M').apply(lambda x: (x+1).prod()-1) > 0).mean()
     }
+import pandas as pd
+import numpy as np
+import os
+import glob
+# ... tus otros imports
 
-def analizar_portafolio_optimo(
-    pesos, tickers, benchmark="SPY", capital=100_000,
-    carpeta="DatosLimpios", plot=True, save=False, carpeta_salida="BacktestPortafolio"
-):
-    import os
-
-    data = cargar_datos(tickers + [benchmark], carpeta)
-    data = data.dropna()
-    retornos = np.log(data / data.shift(1)).dropna()
-    # Serie del portafolio óptimo
-    pesos = np.array(pesos)
-    ret_port = (retornos[tickers] * pesos).sum(axis=1)
-    curva_port = capital * (1 + ret_port).cumprod()
-    # Serie del benchmark
-    ret_bench = retornos[benchmark]
-    curva_bench = capital * (1 + ret_bench).cumprod()
-    # Drawdown
-    dd_port = curva_port / curva_port.cummax() - 1
-    dd_bench = curva_bench / curva_bench.cummax() - 1
-
-    # Métricas
-    met_port = calcular_metricas_portafolio(ret_port)
-    met_bench = calcular_metricas_portafolio(ret_bench)
-    resumen = pd.DataFrame([met_port, met_bench], index=["Portafolio óptimo", benchmark]).T
-
-    if save:
-        os.makedirs(carpeta_salida, exist_ok=True)
-
-    # GRAFICOS
-    fig, axs = plt.subplots(3, 1, figsize=(13, 12), sharex=True)
-    # Curva de valor
-    axs[0].plot(curva_port, label="Portafolio óptimo", lw=2.3)
-    axs[0].plot(curva_bench, label=benchmark, lw=2.3, ls="--")
-    axs[0].set_ylabel("Valor ($)")
-    axs[0].set_title("Evolución del valor del portafolio vs Benchmark")
-    axs[0].legend()
-    axs[0].grid(True, alpha=0.2)
-    # Drawdown
-    axs[1].fill_between(dd_port.index, dd_port, 0, color="tab:blue", alpha=0.35)
-    axs[1].plot(dd_bench.index, dd_bench, color="orange", alpha=0.45, ls="--")
-    axs[1].set_ylabel("Drawdown")
-    axs[1].set_title("Drawdown (caída máxima desde el máximo histórico)")
-    axs[1].grid(True, alpha=0.15)
-    # Histograma de retornos diarios
-    axs[2].hist(ret_port, bins=60, alpha=0.8, label="Portafolio", color="tab:blue", density=True)
-    axs[2].hist(ret_bench, bins=60, alpha=0.6, label=benchmark, color="orange", density=True)
-    axs[2].set_title("Histograma de retornos diarios")
-    axs[2].legend()
-    axs[2].grid(True, alpha=0.1)
-    plt.tight_layout()
-
-    if save:
-        fig.savefig(os.path.join(carpeta_salida, "resumen_backtest.png"), dpi=320)
-        plt.close(fig)
-    elif plot:
-        plt.show()
-
-    # Tabla resumen
-    if save:
-        resumen.to_excel(os.path.join(carpeta_salida, "resumen_metricas.xlsx"))
-        resumen.to_csv(os.path.join(carpeta_salida, "resumen_metricas.csv"))
-        curva_port.to_frame("Portafolio_optimo").join(curva_bench.to_frame(benchmark)).to_csv(
-            os.path.join(carpeta_salida, "curvas_valor.csv")
-        )
-        dd_port.to_frame("Drawdown_portafolio").join(dd_bench.to_frame("Drawdown_bench")).to_csv(
-            os.path.join(carpeta_salida, "drawdowns.csv")
-        )
-        print(f"🟢 Gráficos y métricas del backtest guardados en: {carpeta_salida}/")
-
-    print("\n===== MÉTRICAS RESUMEN =====")
-    print(resumen.round(4))
-
-    return {
-        "curva_port": curva_port,
-        "curva_bench": curva_bench,
-        "drawdown_port": dd_port,
-        "drawdown_bench": dd_bench,
-        "retornos_port": ret_port,
-        "retornos_bench": ret_bench,
-        "resumen": resumen
-    }
+def buscar_archivo_portafolio(destacados_path="Montecarlo", pattern="portafolios_destacados_*.xlsx"):
+    archivos = glob.glob(os.path.join(destacados_path, pattern))
+    if not archivos:
+        raise FileNotFoundError("No se encontró ningún archivo de portafolio destacado en la carpeta Montecarlo.")
+    archivos = sorted(archivos, key=os.path.getmtime, reverse=True)
+    return archivos[0]
