@@ -3,6 +3,8 @@ from analisis_retornos import calcular_retornos_diarios_acumulados
 from generar_pdf import generar_pdf_informe_por_activos, generar_pdf_informe_correlaciones
 from generar_graficos import graficar_retorno_comparado
 import pandas as pd
+import glob, os
+from aaaconfig_usuario import *
 from analisis_correlaciones import (
     calcular_matriz_correlacion,
     calcular_correlaciones_rolling,
@@ -24,77 +26,85 @@ from analisis_correlacion_sectores import (
 )
 from rich.progress import Progress
 from analisis_cartera import markowitz_simulacion
-from backtest_portafolio import backtest_profesional, buscar_archivo_portafolio 
+from backtest_portafolio import (backtest_profesional, buscar_archivo_portafolio,
+                                 backtest_equal_weight, BackTestingReal,
+                                 buscar_cliente_por_dni_email)
 
 
-# ---------------- CONFIGURACIÓN DE ACCIONES ----------------
-descargar = False       # Descargar nuevos datos desde el proveedor
-limpiar = False         # Limpiar y transformar los datos crudos descargados
-analizar = False         # Realizar análisis y gráficos
-GENERAR_PDF = False  # ← Activalo o desactivalo desde acá
-generar_comparativo = False  # ← Activa esto para ver todos los retornos en un solo gráfico
-generar_correlaciones = False
-generar_clustermap = False  # En la mtariz de correlación
-mostrar_dendrograma = False
 
-# Nueva configuración para correlaciones rolling
-generar_correlaciones_rolling = False
-ventana_rolling = 60 # Días para la ventana móvil
-solo_graficar_pares = False     # Si está en True, solo corre la parte de graficar pares específicos
-pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
-#pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
-generar_pca = False
+# # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
+# descargar = True       # Descargar nuevos datos desde el proveedor
+# limpiar = True         # Limpiar y transformar los datos crudos descargados
+# analizar = True         # Realizar análisis y gráficos
+# GENERAR_PDF = True  # ← Activalo o desactivalo desde acá
+# generar_comparativo = True  # ← Activa esto para ver todos los retornos en un solo gráfico
+# generar_correlaciones = True
+# generar_clustermap = True  # En la mtariz de correlación
+# mostrar_dendrograma = True
 
-# Bandera para generar el informe de correlaciones en PDF
-generar_pdf_correlaciones = False  
+# # Nueva configuración para correlaciones rolling
+# generar_correlaciones_rolling = True
+# ventana_rolling = 60 # Días para la ventana móvil
+# solo_graficar_pares = True     # Si está en True, solo corre la parte de graficar pares específicos
+# pares_especificos = []  # Por default vacío. Si querés pares, descomentá la línea de abajo y ponelos.
+# #pares_especificos = ["AAPL-MSFT", "GOOGL-NVDA"]
+# generar_pca = True
 
-##-----------AHORA SI ANALISIS PORTAFOLIO---------------##
+# # Bandera para generar el informe de correlaciones en PDF
+# generar_pdf_correlaciones = True  
 
-##   MONTECARLO 
+# ##-----------AHORA SI ANALISIS PORTAFOLIO---------------##
 
-simular_cartera = False  # Activalo o desactivalo
-n_iteraciones = 8000
-capital_usd = 100000
-peso_min = 0.05   # 5%
-peso_max = 0.25   # 25%
-USAR_BENCHMARK = True
-BENCHMARK_TICKER = "SPY"
-BENCHMARK_COMO_ACTIVO = False
-hacer_backtest = True
+# ##   MONTECARLO 
+
+# simular_cartera = True  # Activalo o desactivalo
+# n_iteraciones = 80000
+# capital_usd = 100000
+# peso_min = 0.05   # 5%
+# peso_max = 0.25   # 25%
+# USAR_BENCHMARK = True
+# BENCHMARK_TICKER = "SPY"
+# BENCHMARK_COMO_ACTIVO = False
+# hacer_backtest = True 
+# hacer_backtest_iguales = True
+# hacer_backtest_real = True
+# carpeta_clientes = "datosgenerales/Clientes"
+# dni_filtrar = 33428871
+
 
 
 # ---------------- CONFIGURACIÓN ----------------
-tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
-start_date = "2000-01-01"
-end_date = "2024-12-31"
-proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
+# tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE","SPY"]
+# start_date = "2000-01-01"
+# end_date = "2024-12-31"
+# proveedor = "yahoo"   # 'alphavantage', 'tiingo' , 'yahoo'
 
-#  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
-tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
-retornos_a_mostrar = ["log", "lineal"]  # podés usar: ["log"], ["lineal"] o ambos
+# #  "bloomberg_dark"   "modern_light", "jupyter_quant", "nyu_quant"
+# tema_grafico = "bloomberg_dark"         # 'dark', 'vintage', 'modern', 'normal'
+# retornos_a_mostrar = ["log", "lineal"]  # podés usar: ["log"], ["lineal"] o ambos
 
-activar_retornos_ventana = False
-ventanas_móviles = [5, 22, 252]  # Por defecto: semanal, mensual, anual
+# activar_retornos_ventana = False
+# ventanas_móviles = [5, 22, 252]  # Por defecto: semanal, mensual, anual
 
-# Opcional: calcular retornos por bloque (semana/mes/año)
-calcular_retornos_por_periodo = False
-frecuencias_temporales = ["W-FRI", "ME", "YE"]  # semanal, mensual, anual
+# # Opcional: calcular retornos por bloque (semana/mes/año)
+# calcular_retornos_por_periodo = False
+# frecuencias_temporales = ["W-FRI", "ME", "YE"]  # semanal, mensual, anual
 
-referencias_histograma = {
-    "media": True,
-    "sigma": True,
-    "mediana": True,
-    "p1": False,
-    "p10": False,
-    "p25": False,
-    "p75": False,
-    "p90": False,
-    "p99": False
-}
-if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
-    tickers_portafolio = [t for t in tickers if t != BENCHMARK_TICKER]
-else:
-    tickers_portafolio = tickers
+# referencias_histograma = {
+#     "media": True,
+#     "sigma": True,
+#     "mediana": True,
+#     "p1": False,
+#     "p10": False,
+#     "p25": False,
+#     "p75": False,
+#     "p90": False,
+#     "p99": False
+# }
+# if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
+#     tickers_portafolio = [t for t in tickers if t != BENCHMARK_TICKER]
+# else:
+#     tickers_portafolio = tickers
 
 # ---------------- EJECUCIÓN DE ACCIONES ----------------
 
@@ -109,7 +119,9 @@ acciones = [
     ("Análisis PCA", generar_pca),
     ("PDF correlaciones", generar_pdf_correlaciones),
     ("Simulación cartera Monte Carlo", simular_cartera),
-    ("Backtesting portafolio óptimo", hacer_backtest)
+    ("Backtesting portafolio óptimo", hacer_backtest),
+    ("Backtesting portafolio igual ponderado", hacer_backtest_iguales),
+    
 ]
 
 with Progress() as progress:
@@ -254,3 +266,38 @@ with Progress() as progress:
             capital=capital_usd
         )
         progress.advance(tarea)
+        
+    if hacer_backtest_iguales:
+        backtest_equal_weight(
+            tickers=tickers_portafolio,
+            benchmark=BENCHMARK_TICKER,
+            carpeta="DatosLimpios",
+            carpeta_salida="BackTestingPortafolioIguales",
+            capital=capital_usd
+        )
+        progress.advance(tarea)
+        
+if hacer_backtest_real:
+    if dni_filtrar:
+        path_cliente = buscar_cliente_por_dni_email(dni=dni_filtrar)
+        if path_cliente:
+            print(f"🟢 Procesando solo cliente con DNI {dni_filtrar}: {os.path.basename(path_cliente)}")
+            BackTestingReal(excel_path=path_cliente)
+        else:
+            print(f"😕 No hemos encontrado ese DNI ({dni_filtrar}). ¿Querés probar con el email? (s/n)")
+            opcion = input().strip().lower()
+            if opcion == "s":
+                email_buscar = input("Escribí el email exacto del cliente: ").strip()
+                path_cliente = buscar_cliente_por_dni_email(email=email_buscar)
+                if path_cliente:
+                    print(f"🟢 Procesando solo cliente con email {email_buscar}: {os.path.basename(path_cliente)}")
+                    BackTestingReal(excel_path=path_cliente)
+                else:
+                    print(f"❌ Tampoco encontramos ese email ({email_buscar}). Revisa bien los datos.")
+            else:
+                print("❗ Finalizando el programa. Revisa el DNI o corre todos los clientes (poné dni_filtrar=None).")
+    else:
+        excels_clientes = glob.glob(os.path.join(carpeta_clientes, "*.xlsx"))
+        for excel_path in excels_clientes:
+            print(f"Procesando backtest real para: {os.path.basename(excel_path)}")
+            BackTestingReal(excel_path=excel_path)
