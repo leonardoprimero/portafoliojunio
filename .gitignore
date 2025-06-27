@@ -50,7 +50,8 @@ nuevo/BackTesting_*/
 *.pdf
 *.csv
 *.png
-
+# ...excepto los de la carpeta Clientes (permite solo ahí)
+!nuevo/datosgenerales/Clientes/*.xlsx
 
 # Config VSCode
 .vscode/
