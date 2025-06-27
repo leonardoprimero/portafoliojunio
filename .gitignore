@@ -41,6 +41,8 @@ nuevo/RetornoDiarioAcumulado/
 nuevo/PCA
 nuevo/Montecarlo
 nuevo/BacktestPortafolioPro
+nuevo/BackTestingPortafolioIguales
+nuevo/BackTesting_*/
 
 
 # Excel y PDF generados

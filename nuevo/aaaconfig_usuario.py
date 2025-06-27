@@ -30,10 +30,10 @@ USAR_BENCHMARK = True
 BENCHMARK_TICKER = "SPY"
 BENCHMARK_COMO_ACTIVO = False
 hacer_backtest = False
-hacer_backtest_iguales = False
+hacer_backtest_iguales = True
 hacer_backtest_real = True
 carpeta_clientes = "datosgenerales/Clientes"
-dni_filtrar = 33428871
+dni_filtrar = None
 
 # ---- Parámetros generales ----
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE", "SPY"]
