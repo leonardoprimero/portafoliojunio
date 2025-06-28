@@ -22,8 +22,8 @@ generar_pdf_correlaciones = False
 
 # ---- Análisis de portafolio (Monte Carlo) ----
 simular_cartera = False
-n_iteraciones = 80000
-capital_usd = 100000
+n_iteraciones = 10000
+capital_usd = 70000
 peso_min = 0.05
 peso_max = 0.25
 USAR_BENCHMARK = True
@@ -31,19 +31,19 @@ BENCHMARK_TICKER = "SPY"
 BENCHMARK_COMO_ACTIVO = False
 
 
-hacer_backtest = True
-GENERAR_PDF_BACKTEST = True
-hacer_backtest_iguales = True
-GENERAR_PDF_BACKTEST = True
+hacer_backtest = False
+GENERAR_PDF_BACKTEST = False
+hacer_backtest_iguales = False
+GENERAR_PDF_BACKTEST = False
 hacer_backtest_real = True
 carpeta_clientes = "datosgenerales/Clientes"
-dni_filtrar = None
+dni_filtrar = 32630214
 GENERAR_PDF_BACKTEST = True
 
 # ---- Parámetros generales ----
 tickers = ["AAPL", "MSFT", "GOOGL", "JPM", "XOM", "UNH", "WMT", "NVDA", "KO", "PFE", "SPY"]
 start_date = "2000-01-01"
-end_date = "2024-12-31"
+end_date = "2025-06-26"
 proveedor = "yahoo"  # 'alphavantage', 'tiingo', 'yahoo'
 
 tema_grafico = "bloomberg_dark"
