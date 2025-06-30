@@ -21,6 +21,8 @@ def descargar_datos(tickers, start_date, end_date, proveedor):
     print(f"\n📥 Proveedor: {proveedor.upper()}\n📁 Carpeta: {carpeta_base}\n🕒 Fechas: {start_date} a {end_date}\n🎯 Tickers: {', '.join(tickers)}")
 
     if proveedor == "yahoo":
+        tickers_fallidos = []
+
         for ticker in tickers:
             try:
                 print(f"\n🔽 Procesando {ticker} desde Yahoo...")
@@ -28,6 +30,7 @@ def descargar_datos(tickers, start_date, end_date, proveedor):
 
                 if df.empty:
                     print(f"⚠️ No se encontraron datos para {ticker}. Saltando.")
+                    tickers_fallidos.append(ticker)
                     continue
 
                 df.reset_index(inplace=True)
@@ -41,30 +44,15 @@ def descargar_datos(tickers, start_date, end_date, proveedor):
 
             except Exception as e:
                 print(f"❌ Error con {ticker} (Yahoo): {e}")
+                tickers_fallidos.append(ticker)
 
-    elif proveedor == "alphavantage":
-        ts = TimeSeries(key=ALPHAVANTAGE_API_KEY, output_format='pandas')
-        for ticker in tickers:
-            try:
-                print(f"\n🔽 Procesando {ticker} desde Alpha Vantage...")
-                df, _ = ts.get_daily(symbol=ticker, outputsize='full')
-                df.rename(columns={
-                    '1. open': 'Open',
-                    '2. high': 'High',
-                    '3. low': 'Low',
-                    '4. close': 'Close',
-                    '5. volume': 'Volume'
-                }, inplace=True)
+        if tickers_fallidos:
+            print("\n🚫 Tickers que fallaron en la descarga:")
+            for t in tickers_fallidos:
+                print(f" - {t}")
+        else:
+            print("\n✅ Todos los tickers se descargaron correctamente.")
 
-                df.reset_index(inplace=True)
-                df.rename(columns={'date': 'Date'}, inplace=True)
-                df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-                df = df.sort_values('Date')
-
-                guardar_csv_limpio(df, ticker, carpeta_base)
-
-            except Exception as e:
-                print(f"❌ Error con {ticker} (Alpha Vantage): {e}")
 
     elif proveedor == "tiingo":
         config = { 'session': True, 'api_key': TIINGO_API_KEY }

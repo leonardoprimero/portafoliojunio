@@ -31,6 +31,8 @@ from backtest_portafolio import (backtest_profesional, buscar_archivo_portafolio
                                  backtest_equal_weight, BackTestingReal,
                                  buscar_cliente_por_dni_email)
 
+from selector_activos import seleccionar_activos
+
 
 
 # # ---------------- CONFIGURACIÓN DE ACCIONES ----------------
@@ -116,6 +118,7 @@ acciones = [
     ("Descargando datos", descargar),
     ("Limpiando datos", limpiar),
     ("Análisis de retornos", analizar),
+    ("Selector de activos óptimos", hacer_seleccion_activos),
     ("Gráfico comparativo", generar_comparativo),
     ("Generar PDF activos", GENERAR_PDF),
     ("Matriz de correlaciones", generar_correlaciones),
@@ -160,6 +163,11 @@ with Progress() as progress:
             tema=tema_grafico,
             carpeta_salida_retornos="RetornoDiarioAcumulado"
         )
+        progress.advance(tarea)
+        
+    if hacer_seleccion_activos:
+        from selector_activos import ejecutar_selector_activos
+        ejecutar_selector_activos()
         progress.advance(tarea)
 
     if GENERAR_PDF:
