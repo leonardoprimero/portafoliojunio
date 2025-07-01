@@ -1,10 +1,16 @@
 import os
 import pandas as pd
 import yfinance as yf
+from aaaconfig_usuario import tickers as ALL_TICKERS
 
 CARPETA_SALIDA = './datosgenerales'
 ARCHIVO_CSV = 'sectores.csv'
 TICKERS_EXTRA = ["MELI"]  # Podés sumar más
+
+# Agrega tickers de ALL_TICKERS que no estén en TICKERS_EXTRA
+for ticker in ALL_TICKERS:
+    if ticker not in TICKERS_EXTRA:
+        TICKERS_EXTRA.append(ticker)
 
 def crear_carpeta(carpeta):
     os.makedirs(carpeta, exist_ok=True)
@@ -56,3 +62,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

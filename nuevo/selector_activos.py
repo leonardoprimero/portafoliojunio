@@ -1,98 +1,108 @@
-import pandas as pd
 import os
-from aaaconfig_usuario import tickers_portafolio, nivel_volatilidad_cliente, sectores_cliente, max_activos_por_sector
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
 
-def cargar_retornos_con_sector(
-    carpeta_retornos="RetornoDiarioAcumulado",
-    path_sectores="datosgenerales/sectores.csv"
-):
-    datos = []
-    for archivo in os.listdir(carpeta_retornos):
-        if archivo.endswith(".xlsx"):
-            path_archivo = os.path.join(carpeta_retornos, archivo)
-            try:
-                df = pd.read_excel(path_archivo)
-                if not df.empty:
-                    ultima_fila = df.iloc[-1]
-                    ticker = archivo.replace(".xlsx", "")
-                    datos.append({
-                        "ticker": ticker,
-                        "retorno": ultima_fila.get("Cumulative_Return_lineal"),
-                        "volatilidad": ultima_fila.get("volatilidad"),
-                        "sharpe": ultima_fila.get("sharpe")
-                    })
-            except Exception as e:
-                print(f"❌ Error leyendo {archivo}: {e}")
+# Reimplementar funciones aquí mismo en lugar de importarlas de analisis_cartera
 
-    df_metricas = pd.DataFrame(datos)
+def calcular_sharpe_ratio(retornos_diarios):
+    media = retornos_diarios.mean()
+    desviacion = retornos_diarios.std()
+    if desviacion == 0:
+        return np.nan
+    return media / desviacion * np.sqrt(252)
 
-    # Asegurar consistencia en los nombres de columnas
-    df_sectores = pd.read_csv(path_sectores)
-    df_sectores.columns = df_sectores.columns.str.strip().str.lower()
-    if 'ticker' not in df_sectores.columns:
-        if 'Ticker' in df_sectores.columns:
-            df_sectores.rename(columns={"Ticker": "ticker"}, inplace=True)
-        else:
-            raise KeyError("La columna 'ticker' no existe en el archivo de sectores.")
+def calcular_volatilidad(retornos_diarios):
+    return retornos_diarios.std() * np.sqrt(252)
 
-    df = df_metricas.merge(df_sectores, on="ticker", how="left")
-    return df
+def calcular_retorno_total(cumulative_return):
+    return cumulative_return.iloc[-1] - 1 if not cumulative_return.empty else np.nan
 
-def seleccionar_activos(df_metricas, max_vol, sectores, max_por_sector):
-    seleccion = []
-    sectores_unicos = df_metricas['sector'].dropna().unique()
-    for sector in sectores_unicos:
-        if sectores and sector not in sectores:
-            continue
-        df_sector = df_metricas[df_metricas['sector'] == sector]
-        df_sector = df_sector[df_sector['volatilidad'] <= max_vol]
-        df_sector = df_sector.sort_values(by='sharpe', ascending=False)
-        seleccion.extend(df_sector.head(max_por_sector)['ticker'].tolist())
-    return seleccion
+RUTA_RETORNOS = "RetornoDiarioAcumulado"
+RUTA_SECTORES = "datosgenerales/sectores.csv"
 
-def generar_recomendaciones(df_metricas, n_recomendaciones=5, min_activos=8, max_activos=12, min_diferencia=6):
-    from itertools import combinations
-    import random
+IGNORAR_ARCHIVOS = ["Comparativo.xlsx", "ratios_completos.xlsx"]
 
-    base = seleccionar_activos(df_metricas, nivel_volatilidad_cliente, sectores_cliente, max_activos_por_sector)
-    base = list(set(base))
-    if len(base) < min_activos:
-        print("⚠️ No hay suficientes activos para generar carteras.")
-        return []
+def obtener_archivos_validos(ruta):
+    return [f for f in os.listdir(ruta)
+            if f.endswith(".xlsx") and f not in IGNORAR_ARCHIVOS and not f.startswith("~$")]
 
-    random.shuffle(base)
-    recomendaciones = []
-    intentos = 0
-    max_intentos = 1000
+def cargar_retornos_con_sector():
+    archivos = obtener_archivos_validos(RUTA_RETORNOS)
+    lista_metricas = []
 
-    while len(recomendaciones) < n_recomendaciones and intentos < max_intentos:
-        intentos += 1
-        cartera = sorted(random.sample(base, k=random.randint(min_activos, min(len(base), max_activos))))
-        es_distinta = all(len(set(cartera).symmetric_difference(set(c))) >= min_diferencia for c in recomendaciones)
-        if es_distinta:
-            recomendaciones.append(cartera)
+    for archivo in tqdm(archivos, desc="Ejecución en progreso"):
+        try:
+            path_archivo = os.path.join(RUTA_RETORNOS, archivo)
+            xls = pd.ExcelFile(path_archivo)
 
-    return recomendaciones
+            # Leer segunda hoja si existe
+            if len(xls.sheet_names) < 2:
+                print(f"⚠️ {archivo} ignorado: no tiene segunda hoja.")
+                continue
+
+            df = pd.read_excel(xls, sheet_name=1)
+
+            # Normalizar nombres de columnas
+            df.columns = [col.strip().replace(" ", "_").capitalize() for col in df.columns]
+
+            if 'Cumulative_return' not in df.columns:
+                print(f"⚠️ {archivo} ignorado: no tiene columna 'Cumulative_return'.")
+                continue
+
+            df['Daily_return'] = df['Cumulative_return'].pct_change()
+            retorno = calcular_retorno_total(df['Cumulative_return'])
+            volatilidad = calcular_volatilidad(df['Daily_return'])
+            sharpe = calcular_sharpe_ratio(df['Daily_return'])
+
+            ticker = archivo.replace(".xlsx", "")
+            lista_metricas.append({
+                'ticker': ticker,
+                'retorno': retorno,
+                'volatilidad': volatilidad,
+                'sharpe': sharpe
+            })
+
+        except Exception as e:
+            print(f"❌ Error procesando {archivo}: {e}")
+
+    if not lista_metricas:
+        raise ValueError("❌ No se generaron métricas de ningún archivo. Verifica tus archivos en la carpeta 'RetornosDiarios'.")
+
+    df_metricas = pd.DataFrame(lista_metricas)
+
+    # Cargar sectores
+    try:
+        df_sectores = pd.read_csv(RUTA_SECTORES)
+        df_sectores.columns = [col.strip().lower() for col in df_sectores.columns]
+        df_metricas = pd.merge(df_metricas, df_sectores, on='ticker', how='left')
+
+    except Exception as e:
+        print(f"⚠️ No se pudo cargar el archivo de sectores: {e}")
+        df_metricas['sector'] = np.nan
+
+    return df_metricas
 
 def ejecutar_selector_activos():
     print("📊 Iniciando selección de activos desde retornos acumulados...")
     df_retornos = cargar_retornos_con_sector()
-    print(f"🔢 Tickers disponibles: {df_retornos['ticker'].nunique()}")
 
+    df_validos = df_retornos.dropna(subset=['retorno', 'volatilidad', 'sharpe'])
+
+    print(f"🔢 Tickers disponibles: {len(df_retornos)}")
     print("🔍 Vista previa de activos con métricas válidas:")
-    df_metricas_válidas = df_retornos.dropna(subset=['retorno', 'volatilidad', 'sharpe'])
-    print(df_metricas_válidas[['ticker', 'retorno', 'volatilidad', 'sharpe', 'sector']])
-    print(f"✅ Total con métricas válidas: {len(df_metricas_válidas)}")
+    print(df_validos.head(20))
+    print(f"✅ Total con métricas válidas: {len(df_validos)}")
 
-    recomendaciones = generar_recomendaciones(df_metricas_válidas)
+    if len(df_validos) < 10:
+        print("⚠️ No hay suficientes activos para generar carteras.")
 
-    for i, cartera in enumerate(recomendaciones):
-        df_cartera = df_metricas_válidas[df_metricas_válidas['ticker'].isin(cartera)]
-        path = f"activos_seleccionados_opcion_{i+1}.csv"
-        df_cartera.to_csv(path, index=False)
-        print(f"✅ Cartera sugerida {i+1} guardada en {path}")
-        print(df_cartera[['ticker', 'retorno', 'volatilidad', 'sharpe', 'sector']])
-        print("\n" + "-"*60 + "\n")
+    # Ejemplo: sugerencia de activos por alta volatilidad
+    sugerencia = df_validos.sort_values(by="volatilidad", ascending=False).head(3)
+    print("💡 Te interesaría ver la correlación entre algunos activos?")
+    print("Te recomiendo estos tres pares por ser los más volátiles:")
+    for i in range(len(sugerencia) - 1):
+        print(f"  {sugerencia.iloc[i]['ticker']}-{sugerencia.iloc[i+1]['ticker']}")
 
-if __name__ == "__main__":
+def seleccionar_activos():
     ejecutar_selector_activos()

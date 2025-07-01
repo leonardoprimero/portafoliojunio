@@ -6,9 +6,9 @@
 
 descargar = False
 limpiar = False
-analizar = True
+analizar = False
 
-hacer_seleccion_activos = False  # Activa la lógica para seleccionar cartera desde todos los activos
+hacer_seleccion_activos = True  # Activa la lógica para seleccionar cartera desde todos los activos
 nivel_volatilidad_cliente = 0.25  # Máxima volatilidad tolerada
 sectores_cliente = []  # O dejarlo en [] para todos    "Technology", "Healthcare", "Energy"
 max_activos_por_sector = 3
