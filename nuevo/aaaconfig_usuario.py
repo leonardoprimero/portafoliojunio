@@ -5,8 +5,8 @@
 # Primera etapa
 
 descargar = False
-limpiar = False
-analizar = False
+limpiar = False 
+analizar = False 
 
 hacer_seleccion_activos = True  # Activa la lógica para seleccionar cartera desde todos los activos
 nivel_volatilidad_cliente = 0.25  # Máxima volatilidad tolerada
