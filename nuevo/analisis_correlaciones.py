@@ -10,12 +10,33 @@ from graficos_correlacion import (
     plot_clustered_heatmap_sin_dendrograma,
     plot_rolling_correlation_lines
 )
+from aaaconfig_usuario import cartera_para_correlacion
+
 
 # ----------- CONFIGURACIÓN BENCHMARK Y FILTRO ----------- #
 USAR_BENCHMARK = True        # True: el benchmark NO entra en matriz/rolling, solo se usa para análisis especial
 BENCHMARK_TICKER = "SPY"    # Cambiá por el ticker que quieras (por ej. "QQQ", "^GSPC", "MERV", etc)
 BENCHMARK_COMO_ACTIVO = False  # True: el benchmark también entra como un activo más en matrices/rolling
 # -------------
+
+def cargar_tickers_de_cartera(nombre_hoja, path_excel="carteras_recomendadas.xlsx"):
+    if nombre_hoja.lower() == "todos":
+        TICKERS_TASA = ["^IRX", "^FVX", "^TNX", "^TYX"]
+        from aaaconfig_usuario import tickers
+        return [t for t in tickers if t not in TICKERS_TASA]
+    else:
+        # Buscar hoja que matchee el nombre ignorando mayús/minús y paréntesis
+        xl = pd.ExcelFile(path_excel)
+        target = nombre_hoja.lower().strip()
+        matching = [s for s in xl.sheet_names if s.lower().strip().startswith(target)]
+        if not matching:
+            raise ValueError(f"No se encontró ninguna hoja que empiece con '{nombre_hoja}' en {path_excel}. Las hojas disponibles son: {xl.sheet_names}")
+        df = xl.parse(matching[0])
+        return df['ticker'].tolist() if 'ticker' in df.columns else df.iloc[:, 0].tolist()
+    
+    
+tickers_filtrados = cargar_tickers_de_cartera(cartera_para_correlacion)
+print("Tickers filtrados para correlación:", tickers_filtrados)
 
 def calcular_matriz_correlacion(
     carpeta_datos_limpios="DatosLimpios",
@@ -36,7 +57,9 @@ def calcular_matriz_correlacion(
         for archivo in files:
             if not archivo.endswith(".csv"):
                 continue
-            ticker = archivo.replace(".csv", "")
+            ticker = archivo.replace(".csv", "").strip().upper()
+            if ticker not in tickers_filtrados:
+                continue  # Solo procesa los tickers de la cartera elegida
             path = os.path.join(root, archivo)
             try:
                 df = pd.read_csv(path)
@@ -81,12 +104,27 @@ def calcular_matriz_correlacion(
 
     # Calcular y CLUSTERIZAR la matriz de correlaciones
     matriz = df_retornos.corr(method=metodo)
-    from scipy.cluster.hierarchy import linkage, dendrogram
-    linkage_matrix = linkage(matriz, method="average")
-    dendro = dendrogram(linkage_matrix, labels=matriz.index, no_plot=True)
-    idx = dendro["leaves"]
-    matriz_cluster = matriz.iloc[idx, :].iloc[:, idx]
 
+    # --- BLOQUE ROBUSTO: limpiar matriz antes de clusterizar ---
+    distancias = 1 - matriz
+
+    # Limpia filas y columnas con todos NaN
+    distancias = distancias.dropna(axis=0, how='all').dropna(axis=1, how='all')
+    # Reemplaza infinitos por NaN y limpia de nuevo
+    distancias = distancias.replace([np.inf, -np.inf], np.nan)
+    distancias = distancias.dropna(axis=0, how='any').dropna(axis=1, how='any')
+
+    if distancias.shape[0] > 1 and distancias.shape[1] > 1 and np.isfinite(distancias.values).all():
+        from scipy.cluster.hierarchy import linkage, dendrogram
+        linkage_matrix = linkage(distancias, method="average")
+        # Usá distancias.index como labels, ¡no matriz.index!
+        dendro = dendrogram(linkage_matrix, labels=distancias.index, no_plot=True)
+        idx = dendro["leaves"]
+        # Reordená solo la parte relevante de la matriz original
+        matriz_cluster = matriz.loc[distancias.index, distancias.index].iloc[idx, :].iloc[:, idx]
+    else:
+        print("⚠️ No se puede hacer clustering: matriz con NaN, infinitos o menos de dos activos con datos válidos.")
+        matriz_cluster = matriz  # o None, según prefieras
     # Guardar SOLO la matriz clusterizada
     nombre_archivo = f"matriz_correlacion_{metodo}_clusterizada.{extension_salida}"
     path_archivo = os.path.join(carpeta_salida, nombre_archivo)
@@ -135,6 +173,8 @@ def calcular_correlaciones_rolling(
             if not archivo.endswith(".csv"):
                 continue
             ticker = archivo.replace(".csv", "")
+            if ticker not in tickers_filtrados:
+                continue  # Solo procesa los tickers de la cartera elegida
             path = os.path.join(root, archivo)
             try:
                 df = pd.read_csv(path)
@@ -152,7 +192,7 @@ def calcular_correlaciones_rolling(
                 tickers_ok.append(ticker)
             except Exception as e:
                 errores.append(f"❌ Error leyendo {ticker}: {e}")
-                
+
             if USAR_BENCHMARK and not BENCHMARK_COMO_ACTIVO:
                 if BENCHMARK_TICKER in tickers_ok:
                     tickers_ok.remove(BENCHMARK_TICKER)
@@ -328,28 +368,58 @@ def guardar_rankings_extremos(top_pos, top_neg, carpeta_salida):
     top_neg.to_csv(os.path.join(carpeta_salida, "pares_menos_correlacionados.csv"), index=False)
     print("📌 Rankings extremos guardados")
 
-def ejecutar_pca_sobre_retornos(carpeta_datos_limpios="DatosLimpios", carpeta_salida="PCA", n_componentes=2, tema="default"):
-  
+def ejecutar_pca_sobre_retornos(
+    carpeta_datos_limpios="DatosLimpios", 
+    carpeta_salida="PCA", 
+    n_componentes=2, 
+    tema="default"
+):
+    from aaaconfig_usuario import cartera_para_correlacion
+    # Importá la función y usá la misma lógica de tickers filtrados
+    tickers_filtrados = cargar_tickers_de_cartera(cartera_para_correlacion)
+    tickers_filtrados = [str(t).strip().upper() for t in tickers_filtrados]
+
     os.makedirs(carpeta_salida, exist_ok=True)
     dfs = []
-    tickers = []
+    tickers_ok = []
 
     for root, _, files in os.walk(carpeta_datos_limpios):
         for archivo in files:
             if archivo.endswith(".csv"):
+                ticker = archivo.replace(".csv", "").strip().upper()
+                if ticker not in tickers_filtrados:
+                    continue
                 path = os.path.join(root, archivo)
                 df = pd.read_csv(path)
                 if "Close" not in df.columns:
                     continue
                 df["Date"] = pd.to_datetime(df["Date"])
                 df.set_index("Date", inplace=True)
-                ticker = archivo.replace(".csv", "")
                 retornos = df["Close"].pct_change().dropna()
+                if retornos.empty:
+                    continue
                 dfs.append(retornos.rename(ticker))
-                tickers.append(ticker)
+                tickers_ok.append(ticker)
 
-    df_retornos = pd.concat(dfs, axis=1).dropna()
+    if not dfs:
+        print("❌ No se pudo calcular el PCA: no hay activos válidos.")
+        return
+
+    df_retornos = pd.concat(dfs, axis=1)
+    df_retornos = df_retornos.loc[:, tickers_ok]
+
+    # Hacé dropna como en la correlación (filas y columnas con al menos un dato)
+    df_retornos = df_retornos.dropna(how='all', axis=0)
+    # Drop filas donde falte algún dato, para que sea rectangular
+    df_retornos = df_retornos.dropna(axis=0, how='any')
+
+    # Standardize
     X = (df_retornos - df_retornos.mean()) / df_retornos.std()
+
+    if X.shape[1] < 2 or X.shape[0] < 2:
+        print("⚠️ No hay suficientes activos ni datos válidos para aplicar PCA.")
+        print("Shape de X:", X.shape)
+        return
 
     # PCA
     pca = PCA(n_components=n_componentes)
@@ -365,7 +435,7 @@ def ejecutar_pca_sobre_retornos(carpeta_datos_limpios="DatosLimpios", carpeta_sa
 
     scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], s=120, alpha=0.85, color="royalblue", edgecolors="black", linewidths=0.5)
 
-    for i, nombre in enumerate(df_retornos.columns):
+    for i, nombre in enumerate(X.columns):
         plt.text(X_pca[i, 0] + 1.8, X_pca[i, 1] + 1.8, nombre, fontsize=10, weight="bold", color="black")
 
     plt.xlabel(f"Componente Principal 1 ({explained[0]:.1f}%)", fontsize=13)

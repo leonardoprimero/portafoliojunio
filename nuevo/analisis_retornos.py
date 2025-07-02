@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 from generar_graficos import (
     generar_grafico_retorno_acumulado,
@@ -12,6 +13,8 @@ from generar_graficos import (
     generar_tabla_jarque_bera_imagen,
     generar_grafico_autocorrelacion
 )
+
+TICKERS_TASA_LIBRE = ["^IRX", "^FVX", "^TNX", "^TYX"]
 
 def calcular_retornos_diarios_acumulados(
     carpeta_datos_limpios="DatosLimpios",
@@ -34,6 +37,8 @@ def calcular_retornos_diarios_acumulados(
         for file in files:
             if file.endswith(".csv"):
                 ticker = os.path.splitext(file)[0]
+                if ticker in TICKERS_TASA_LIBRE:
+                    continue   #  <---- SI ES TASA LIBRE RIESGO NO HACE EL ANALISIS.
                 path_csv = os.path.join(root, file)
 
                 try:
@@ -151,3 +156,78 @@ def calcular_retornos_diarios_acumulados(
         )
 
     print("\n🏁 Cálculo de retornos y generación de gráficos completados.")
+
+
+TICKERS_TASA_LIBRE = ["^IRX", "^FVX", "^TNX", "^TYX"]
+NOMBRES_TASA = {
+    "^IRX": "Treasury 13 Week Bill Yield (3 months)",
+    "^FVX": "Treasury 5 Year Note Yield (5 years)",
+    "^TNX": "Treasury 10 Year Note Yield (10 years)",
+    "^TYX": "Treasury 30 Year Bond Yield (30 years)"
+}
+
+def analizar_tasas_libres_riesgo(
+    carpeta_datos_limpios="DatosLimpios",
+    carpeta_salida="TasasLibresRiesgo"
+):
+    os.makedirs(carpeta_salida, exist_ok=True)
+    resumen_estadisticas = []
+
+    for ticker in TICKERS_TASA_LIBRE:
+        # Buscá el archivo CSV
+        for root, dirs, files in os.walk(carpeta_datos_limpios):
+            for file in files:
+                if file.endswith(".csv") and os.path.splitext(file)[0] == ticker:
+                    path_csv = os.path.join(root, file)
+                    break
+            else:
+                continue  # sigue buscando si no encuentra
+            break
+        else:
+            print(f"No se encontró archivo para {ticker}")
+            continue
+
+        df = pd.read_csv(path_csv)
+        df["Date"] = pd.to_datetime(df["Date"])
+        df.set_index("Date", inplace=True)
+        
+        # La tasa viene generalmente como % anual
+        df["Yield"] = df["Close"] / 100  # de porcentaje anual a proporción (ej: 4.30% -> 0.043)
+
+        # Retorno diario simple (para comparar con retornos de acciones si hiciera falta)
+        df["Yield_Return"] = df["Yield"].pct_change()
+        
+        # Estadísticas básicas
+        stats = {
+            "Ticker": ticker,
+            "Nombre": NOMBRES_TASA.get(ticker, ticker),
+            "Promedio_Anual": df["Yield"].mean(),
+            "Min_Anual": df["Yield"].min(),
+            "Max_Anual": df["Yield"].max(),
+            "Std_Anual": df["Yield"].std(),
+            "Mediana_Anual": df["Yield"].median(),
+            "Percentil10": df["Yield"].quantile(0.1),
+            "Percentil90": df["Yield"].quantile(0.9),
+            "Std_Retorno_Diario": df["Yield_Return"].std(),
+        }
+        resumen_estadisticas.append(stats)
+
+        # Graficar evolución de la tasa
+        plt.figure(figsize=(12,5))
+        plt.plot(df.index, df["Yield"]*100, label="Yield anual (%)")
+        plt.title(f"{ticker} - {NOMBRES_TASA.get(ticker, ticker)}")
+        plt.ylabel("Yield (%)")
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(os.path.join(carpeta_salida, f"{ticker}_evolucion.png"))
+        plt.close()
+
+        # Guardar Excel para cada tasa
+        with pd.ExcelWriter(os.path.join(carpeta_salida, f"{ticker}_analisis.xlsx")) as writer:
+            df.to_excel(writer, sheet_name="Serie")
+            pd.DataFrame([stats]).to_excel(writer, sheet_name="Estadisticas", index=False)
+
+    # Guardar un Excel con el resumen de todas las tasas
+    df_stats = pd.DataFrame(resumen_estadisticas)
+    df_stats.to_excel(os.path.join(carpeta_salida, "Resumen_Estadisticas_Tasas.xlsx"), index=False)
+    print("🏦 Análisis de tasas libres de riesgo completado. Archivos en:", carpeta_salida)

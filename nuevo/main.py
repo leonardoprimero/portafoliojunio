@@ -1,5 +1,5 @@
 from descarga_datos import descargar_datos, limpiar_datos_crudos
-from analisis_retornos import calcular_retornos_diarios_acumulados
+from analisis_retornos import calcular_retornos_diarios_acumulados, analizar_tasas_libres_riesgo
 from generar_pdf import generar_pdf_informe_por_activos, generar_pdf_informe_correlaciones, generar_pdf_backtesting
 from generar_graficos import graficar_retorno_comparado
 import pandas as pd
@@ -31,7 +31,7 @@ from backtest_portafolio import (backtest_profesional, buscar_archivo_portafolio
                                  backtest_equal_weight, BackTestingReal,
                                  buscar_cliente_por_dni_email)
 
-from selector_activos import seleccionar_activos
+from selector_activos import ejecutar_selector_activos
 
 
 
@@ -118,6 +118,7 @@ acciones = [
     ("Descargando datos", descargar),
     ("Limpiando datos", limpiar),
     ("Análisis de retornos", analizar),
+    ("Análisis tasas libres de riesgo", analizar_tasas_libres),
     ("Selector de activos óptimos", hacer_seleccion_activos),
     ("Gráfico comparativo", generar_comparativo),
     ("Generar PDF activos", GENERAR_PDF),
@@ -126,6 +127,7 @@ acciones = [
     ("Análisis PCA", generar_pca),
     ("PDF correlaciones", generar_pdf_correlaciones),
     ("Simulación cartera Monte Carlo", simular_cartera),
+    ("simular_cartera_de_los_activos_seleccionados", activos_seleccionados),
     ("Backtesting portafolio óptimo", hacer_backtest),
     ("Backtesting portafolio igual ponderado", hacer_backtest_iguales),
     
@@ -154,6 +156,13 @@ with Progress() as progress:
             calcular_bloques=calcular_retornos_por_periodo,
             frecuencias=frecuencias_temporales,
             referencias_histograma=referencias_histograma
+        )
+        progress.advance(tarea)
+        
+    if analizar_tasas_libres:
+        analizar_tasas_libres_riesgo(
+            carpeta_datos_limpios="DatosLimpios",
+            carpeta_salida="TasasLibresRiesgo"
         )
         progress.advance(tarea)
 

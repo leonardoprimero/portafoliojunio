@@ -2,55 +2,114 @@ import os
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from aaaconfig_usuario import tasa_libre_riesgo_ticker
 
-# Reimplementar funciones aquí mismo en lugar de importarlas de analisis_cartera
 
-def calcular_sharpe_ratio(retornos_diarios):
-    media = retornos_diarios.mean()
-    desviacion = retornos_diarios.std()
-    if desviacion == 0:
+# --- CONFIGURACIÓN ---
+RUTA_RETORNOS = "RetornoDiarioAcumulado"
+RUTA_SECTORES = "datosgenerales/sectores.csv"
+CARPETA_TASAS = "TasasLibresRiesgo"
+IGNORAR_ARCHIVOS = ["Comparativo.xlsx", "ratios_completos.xlsx"]
+
+# --- FUNCIONES DE CÁLCULO ---
+
+def cargar_tasa_libre_riesgo_diaria(ticker, carpeta):
+    path = os.path.join(carpeta, f"{ticker}_analisis.xlsx")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"No se encontró el archivo de tasa libre de riesgo en: {path}")
+    
+    df = pd.read_excel(path, sheet_name="Serie", index_col=0, parse_dates=True)
+    df.index = pd.to_datetime(df.index)
+    tasa_diaria = (df["Yield"] / 100) / 252
+    tasa_diaria.name = "R_f"
+    return tasa_diaria
+
+def calcular_sharpe_ratio(retornos_diarios, tasa_libre_diaria=None):
+    if retornos_diarios.empty:
         return np.nan
-    return media / desviacion * np.sqrt(252)
+
+    if tasa_libre_diaria is not None and not tasa_libre_diaria.empty:
+        df_combinado = pd.concat([retornos_diarios, tasa_libre_diaria], axis=1).fillna(method='ffill')
+        tasa_alineada = df_combinado.loc[retornos_diarios.index, 'R_f'].fillna(method='bfill')
+        if tasa_alineada.isnull().all():
+            excesos = retornos_diarios
+        else:
+            excesos = retornos_diarios - tasa_alineada
+    else:
+        excesos = retornos_diarios
+
+    media_exceso = excesos.mean(skipna=True)
+    desviacion_exceso = excesos.std(skipna=True)
+
+    if desviacion_exceso == 0 or pd.isna(desviacion_exceso) or desviacion_exceso < 1e-9: # Evitar división por cero
+        return np.nan
+        
+    return (media_exceso / desviacion_exceso) * np.sqrt(252)
 
 def calcular_volatilidad(retornos_diarios):
+    if retornos_diarios.empty:
+        return np.nan
     return retornos_diarios.std() * np.sqrt(252)
 
 def calcular_retorno_total(cumulative_return):
-    return cumulative_return.iloc[-1] - 1 if not cumulative_return.empty else np.nan
+    if cumulative_return.empty or len(cumulative_return.dropna()) < 2:
+        return np.nan
+    # Usar el último valor válido
+    last_valid_value = cumulative_return.dropna().iloc[-1]
+    return last_valid_value - 1
 
-RUTA_RETORNOS = "RetornoDiarioAcumulado"
-RUTA_SECTORES = "datosgenerales/sectores.csv"
-IGNORAR_ARCHIVOS = ["Comparativo.xlsx", "ratios_completos.xlsx"]
+# --- FUNCIONES PRINCIPALES DEL SCRIPT ---
 
 def obtener_archivos_validos(ruta):
     return [f for f in os.listdir(ruta)
             if f.endswith(".xlsx") and f not in IGNORAR_ARCHIVOS and not f.startswith("~$")]
 
-def cargar_retornos_con_sector():
+def cargar_metricas_de_activos():
     archivos = obtener_archivos_validos(RUTA_RETORNOS)
     lista_metricas = []
 
-    for archivo in tqdm(archivos, desc="Ejecución en progreso"):
+    tasa_libre_diaria = None
+    if tasa_libre_riesgo_ticker:
+        try:
+            tasa_libre_diaria = cargar_tasa_libre_riesgo_diaria(tasa_libre_riesgo_ticker, CARPETA_TASAS)
+            print(f"🔵 Usando tasa libre de riesgo '{tasa_libre_riesgo_ticker}' para el cálculo del Sharpe Ratio.")
+        except Exception as e:
+            print(f"⚠️ No se pudo cargar la tasa libre de riesgo. El Sharpe Ratio se calculará sin ajuste. Error: {e}")
+
+    for archivo in tqdm(archivos, desc="Calculando métricas de activos"):
+        ticker = archivo.replace(".xlsx", "")
         try:
             path_archivo = os.path.join(RUTA_RETORNOS, archivo)
-            xls = pd.ExcelFile(path_archivo)
-
-            if len(xls.sheet_names) < 2:
-                print(f"⚠️ {archivo} ignorado: no tiene segunda hoja.")
-                continue
-
-            df = pd.read_excel(xls, sheet_name=1)
+            # Leer la segunda hoja (índice 1) que contiene la serie de retornos
+            df = pd.read_excel(path_archivo, sheet_name=1, index_col=0, parse_dates=True)
+            
             df.columns = [col.strip().replace(" ", "_").capitalize() for col in df.columns]
 
             if 'Cumulative_return' not in df.columns:
-                print(f"⚠️ {archivo} ignorado: no tiene columna 'Cumulative_return'.")
+                print(f"⚠️ Archivo '{archivo}' ignorado: no tiene columna 'Cumulative_return'.")
+                continue
+            
+            # --- PASO CRÍTICO: ASEGURAR ORDEN CRONOLÓGICO ---
+            df = df.sort_index()
+
+            # Limpiar la columna de retornos acumulados de valores no numéricos y nulos
+            df['Cumulative_return'] = pd.to_numeric(df['Cumulative_return'], errors='coerce')
+            df = df.dropna(subset=['Cumulative_return'])
+
+            if len(df) < 2:
+                print(f"⚠️ Archivo '{archivo}' ignorado: no tiene suficientes datos válidos para calcular retornos.")
                 continue
 
-            df['Daily_return'] = df['Cumulative_return'].pct_change()
+            # Calcular métricas
+            daily_returns = df['Cumulative_return'].pct_change().dropna()
+            
             retorno = calcular_retorno_total(df['Cumulative_return'])
-            volatilidad = calcular_volatilidad(df['Daily_return'])
-            sharpe = calcular_sharpe_ratio(df['Daily_return'])
-
+            volatilidad = calcular_volatilidad(daily_returns)
+            sharpe = calcular_sharpe_ratio(daily_returns, tasa_libre_diaria)
+            if tasa_libre_diaria is not None and not tasa_libre_diaria.empty:
+                print(f"🔹 {ticker}: Sharpe ajustado usando {tasa_libre_riesgo_ticker}")
+            else:
+                print(f"◽ {ticker}: Sharpe clásico (sin ajuste de tasa)")
             ticker = archivo.replace(".xlsx", "")
             lista_metricas.append({
                 'ticker': ticker,
@@ -60,77 +119,71 @@ def cargar_retornos_con_sector():
             })
 
         except Exception as e:
-            print(f"❌ Error procesando {archivo}: {e}")
+            print(f"❌ Error procesando el archivo '{archivo}': {e}")
 
     if not lista_metricas:
-        raise ValueError("❌ No se generaron métricas de ningún archivo. Verifica tus archivos en la carpeta 'RetornosDiarios'.")
+        raise ValueError("❌ No se pudieron generar métricas para ningún archivo.")
 
     df_metricas = pd.DataFrame(lista_metricas)
 
     try:
         df_sectores = pd.read_csv(RUTA_SECTORES)
         df_sectores.columns = [col.strip().lower() for col in df_sectores.columns]
-        if 'ticker' not in df_sectores.columns:
-            raise ValueError("⚠️ El archivo de sectores no contiene la columna 'ticker'.")
         df_metricas = pd.merge(df_metricas, df_sectores, on='ticker', how='left')
     except Exception as e:
         print(f"⚠️ No se pudo cargar el archivo de sectores: {e}")
-        df_metricas['sector'] = np.nan
+        df_metricas['sector'] = 'Desconocido'
 
     return df_metricas
 
 def generar_carteras_y_guardar_excel(df):
-    writer = pd.ExcelWriter("carteras_recomendadas.xlsx", engine='xlsxwriter')
+    output_path = "carteras_recomendadas.xlsx"
+    writer = pd.ExcelWriter(output_path, engine='xlsxwriter')
 
-    # Cartera por sector (3 mejores por Sharpe)
-    df_por_sector = df.dropna(subset=['sector']).copy()
-    carteras_sector = df_por_sector.groupby('sector').apply(lambda x: x.nlargest(3, 'sharpe')).reset_index(drop=True)
-    carteras_sector['peso_%'] = round(100 / 3, 2)
-    carteras_sector.to_excel(writer, sheet_name="PorSector", index=False)
+    df_por_sector = df.dropna(subset=['sector', 'sharpe']).copy()
+    if not df_por_sector.empty:
+        carteras_sector = df_por_sector.groupby('sector').apply(lambda x: x.nlargest(3, 'sharpe')).reset_index(drop=True)
+        if not carteras_sector.empty:
+            carteras_sector.to_excel(writer, sheet_name="Mejores_Por_Sector", index=False)
 
-    # 5 carteras variadas por perfil
     perfiles = {
-        "Conservador": lambda x: x.nsmallest(12, 'volatilidad'),
-        "Moderado": lambda x: x.sort_values(by=['sharpe'], ascending=False).head(10),
-        "Agresivo": lambda x: x.nlargest(9, 'retorno'),
-        "SuperAgresivo": lambda x: x.nlargest(8, 'sharpe'),
-        "Mixta": lambda x: pd.concat([
-            x.nlargest(4, 'sharpe'),
-            x.nsmallest(4, 'volatilidad'),
-            x.sort_values(by='retorno', ascending=False).head(4)
+        "Conservador (Baja Volatilidad)": lambda x: x.nsmallest(12, 'volatilidad'),
+        "Moderado (Balanceado)": lambda x: x.nlargest(10, 'sharpe'),
+        "Agresivo (Alto Retorno)": lambda x: x.nlargest(9, 'retorno'),
+        "Mixta (Diversificada)": lambda x: pd.concat([
+            x.nlargest(4, 'sharpe'), x.nsmallest(4, 'volatilidad'), x.nlargest(4, 'retorno')
         ]).drop_duplicates().head(12)
     }
 
     for nombre, filtro in perfiles.items():
-        cartera = filtro(df)
-        n = len(cartera)
-        cartera['peso_%'] = round(100 / n, 2)
-        cartera.to_excel(writer, sheet_name=nombre, index=False)
+        cartera = filtro(df.dropna(subset=['retorno', 'volatilidad', 'sharpe']))
+        if not cartera.empty:
+            cartera['peso_%'] = round(100 / len(cartera), 2)
+            cartera.to_excel(writer, sheet_name=nombre, index=False)
 
     writer.close()
-    print("📁 Archivo 'carteras_recomendadas.xlsx' generado exitosamente.")
+    print(f"✅ Archivo '{output_path}' generado exitosamente.")
 
 def ejecutar_selector_activos():
-    print("📊 Iniciando selección de activos desde retornos acumulados...")
-    df_retornos = cargar_retornos_con_sector()
-    df_validos = df_retornos.dropna(subset=['retorno', 'volatilidad', 'sharpe'])
+    print("📊 Iniciando el selector de activos...")
+    try:
+        df_metricas = cargar_metricas_de_activos()
+        df_validos = df_metricas.dropna(subset=['retorno', 'volatilidad', 'sharpe']).copy()
 
-    print(f"🔢 Tickers disponibles: {len(df_retornos)}")
-    print("🔍 Vista previa de activos con métricas válidas:")
-    print(df_validos.head(20))
-    print(f"✅ Total con métricas válidas: {len(df_validos)}")
+        print(f"\n🔢 Se procesaron {len(df_metricas)} tickers.")
+        print(f"✅ Se obtuvieron {len(df_validos)} activos con métricas válidas.")
+        
+        if len(df_validos) < 10:
+            print("\n⚠️ No hay suficientes activos con métricas válidas para generar carteras diversificadas.")
+            return
 
-    if len(df_validos) < 10:
-        print("⚠️ No hay suficientes activos para generar carteras.")
-        return
+        print("\n🔍 Vista previa de los activos con mejores métricas (ordenados por Sharpe):")
+        print(df_validos.sort_values(by="sharpe", ascending=False).head(10))
 
-    sugerencia = df_validos.sort_values(by="volatilidad", ascending=False).head(3)
-    print("💡 Te interesaría ver la correlación entre algunos activos?")
-    print("Te recomiendo estos tres pares por ser los más volátiles:")
-    for i in range(len(sugerencia) - 1):
-        print(f"  {sugerencia.iloc[i]['ticker']}-{sugerencia.iloc[i+1]['ticker']}")
+        generar_carteras_y_guardar_excel(df_validos)
 
-    generar_carteras_y_guardar_excel(df_validos)
+    except Exception as e:
+        print(f"\n❌ Ocurrió un error crítico durante la ejecución: {e}")
 
-def seleccionar_activos():
+if __name__ == "__main__":
     ejecutar_selector_activos()

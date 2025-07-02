@@ -1,0 +1,5 @@
+﻿Ticker,Nombre,Sector
+^IRX,Treasury 13 Week Bill Yield (3 months),Risk Free Rate
+^FVX,Treasury 5 Year Note Yield (5 years),Risk Free Rate
+^TNX,Treasury 10 Year Note Yield (10 years),Risk Free Rate
+^TYX,Treasury 30 Year Bond Yield (30 years),Risk Free Rate

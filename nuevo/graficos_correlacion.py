@@ -4,6 +4,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 import scipy.cluster.hierarchy as sch
+import numpy as np
 
 def plot_clustermap_correlacion(
     matriz,
@@ -22,82 +23,89 @@ def plot_clustermap_correlacion(
     cmap = sns.color_palette("YlGnBu", as_cmap=True)
     sns.set(font_scale=1.18, style="whitegrid")  # Más pro para print
 
-    # Crear el clustermap
-    cluster = sns.clustermap(
-        matriz,
-        method="average",
-        metric="euclidean",
-        annot=True,
-        fmt=".2f",
-        annot_kws={"size": 13, "weight": "bold"},
-        cmap=cmap,
-        center=0,
-        linewidths=0.15,
-        figsize=(13, 12),
-        row_cluster=mostrar_dendrograma,
-        col_cluster=mostrar_dendrograma,
-        cbar_kws={
-            "label": "Correlación",
-            "shrink": 0.7,
-            "aspect": 24,
-            "pad": 0.03
-        }
-    )
+    # --- Filtrar la matriz para asegurar que está limpia ---
+    matriz = matriz.dropna(axis=0, how='all').dropna(axis=1, how='all')
+    matriz = matriz.replace([np.inf, -np.inf], np.nan)
+    matriz = matriz.dropna(axis=0, how='any').dropna(axis=1, how='any')
 
-    # Fondo blanco PRO (todo blanco: matriz, dendro y colorbar)
-    cluster.ax_heatmap.set_facecolor("white")
-    cluster.fig.patch.set_facecolor("white")
-    if cluster.ax_row_dendrogram:
-        cluster.ax_row_dendrogram.set_facecolor("white")
-    if cluster.ax_col_dendrogram:
-        cluster.ax_col_dendrogram.set_facecolor("white")
-    cluster.cax.set_facecolor("white")
+    if matriz.shape[0] > 1 and matriz.shape[1] > 1 and np.isfinite(matriz.values).all():
+        # Crear el clustermap
+        cluster = sns.clustermap(
+            matriz,
+            method="average",
+            metric="euclidean",
+            annot=True,
+            fmt=".2f",
+            annot_kws={"size": 13, "weight": "bold"},
+            cmap=cmap,
+            center=0,
+            linewidths=0.15,
+            figsize=(13, 12),
+            row_cluster=mostrar_dendrograma,
+            col_cluster=mostrar_dendrograma,
+            cbar_kws={
+                "label": "Correlación",
+                "shrink": 0.7,
+                "aspect": 24,
+                "pad": 0.03
+            }
+        )
 
-    # Dendrograma y etiquetas en gris elegante
-    for ax in [cluster.ax_row_dendrogram, cluster.ax_col_dendrogram]:
-        if ax is not None:
-            for line in ax.lines:
-                line.set_color("#444")
-                line.set_linewidth(2)
-            for spine in ax.spines.values():
-                spine.set_color("#444")
-            ax.tick_params(color="#444", labelcolor="#444")
-    # Etiquetas de los ticks en gris fuerte
-    cluster.ax_heatmap.set_xticklabels(cluster.ax_heatmap.get_xticklabels(), color='#222', fontsize=13, weight="bold")
-    cluster.ax_heatmap.set_yticklabels(cluster.ax_heatmap.get_yticklabels(), color='#222', fontsize=13, weight="bold")
-    # Etiquetas de la colorbar también en gris
-    cluster.cax.yaxis.label.set_color("#444")
-    cluster.cax.tick_params(labelcolor="#444", color="#444")
+        # Fondo blanco PRO (todo blanco: matriz, dendro y colorbar)
+        cluster.ax_heatmap.set_facecolor("white")
+        cluster.fig.patch.set_facecolor("white")
+        if cluster.ax_row_dendrogram:
+            cluster.ax_row_dendrogram.set_facecolor("white")
+        if cluster.ax_col_dendrogram:
+            cluster.ax_col_dendrogram.set_facecolor("white")
+        cluster.cax.set_facecolor("white")
 
-    # Números en negro o blanco según fondo de celda (nunca se pierden)
-    for text in cluster.ax_heatmap.texts:
-        val = float(text.get_text())
-        cell_color = cluster.ax_heatmap.collections[0].cmap(cluster.ax_heatmap.collections[0].norm(val))
-        r, g, b = to_rgb(cell_color)
-        luminancia = 0.2126*r + 0.7152*g + 0.0722*b
-        text.set_color("black" if luminancia > 0.6 else "white")
-        text.set_fontweight("bold")
+        # Dendrograma y etiquetas en gris elegante
+        for ax in [cluster.ax_row_dendrogram, cluster.ax_col_dendrogram]:
+            if ax is not None:
+                for line in ax.lines:
+                    line.set_color("#444")
+                    line.set_linewidth(2)
+                for spine in ax.spines.values():
+                    spine.set_color("#444")
+                ax.tick_params(color="#444", labelcolor="#444")
+        # Etiquetas de los ticks en gris fuerte
+        cluster.ax_heatmap.set_xticklabels(cluster.ax_heatmap.get_xticklabels(), color='#222', fontsize=13, weight="bold")
+        cluster.ax_heatmap.set_yticklabels(cluster.ax_heatmap.get_yticklabels(), color='#222', fontsize=13, weight="bold")
+        # Etiquetas de la colorbar también en gris
+        cluster.cax.yaxis.label.set_color("#444")
+        cluster.cax.tick_params(labelcolor="#444", color="#444")
 
-    # Título y subtítulo elegantes
-    cluster.fig.suptitle(
-        f"Matriz de Correlación Clusterizada ({metodo.capitalize()})",
-        fontsize=22, color="#212529", fontweight="bold", y=1.03
-    )
-    cluster.fig.text(0.5, 0.96, "Análisis financiero automatizado | leocaliva.com", color="#5a5a5a", fontsize=13, ha="center")
+        # Números en negro o blanco según fondo de celda (nunca se pierden)
+        for text in cluster.ax_heatmap.texts:
+            val = float(text.get_text())
+            cell_color = cluster.ax_heatmap.collections[0].cmap(cluster.ax_heatmap.collections[0].norm(val))
+            r, g, b = to_rgb(cell_color)
+            luminancia = 0.2126*r + 0.7152*g + 0.0722*b
+            text.set_color("black" if luminancia > 0.6 else "white")
+            text.set_fontweight("bold")
 
-    # Colorbar a la derecha, slim
-    cluster.cax.set_position([.91, .32, .02, .48])
+        # Título y subtítulo elegantes
+        cluster.fig.suptitle(
+            f"Matriz de Correlación Clusterizada ({metodo.capitalize()})",
+            fontsize=22, color="#212529", fontweight="bold", y=1.03
+        )
+        cluster.fig.text(0.5, 0.96, "Análisis financiero automatizado | leocaliva.com", color="#5a5a5a", fontsize=13, ha="center")
 
-    plt.subplots_adjust(top=0.92)
-    plt.tight_layout()
-    out_path = os.path.join(
-        carpeta_salida,
-        f"clustermap_correlacion_{metodo}_{tema}_PRO.png"
-    )
-    plt.savefig(out_path, dpi=320, bbox_inches="tight", facecolor="white")
-    plt.close()
-    print(f"🖼️ Clustermap PRO guardado en {out_path}")
+        # Colorbar a la derecha, slim
+        cluster.cax.set_position([.91, .32, .02, .48])
 
+        plt.subplots_adjust(top=0.92)
+        plt.tight_layout()
+        out_path = os.path.join(
+            carpeta_salida,
+            f"clustermap_correlacion_{metodo}_{tema}_PRO.png"
+        )
+        plt.savefig(out_path, dpi=320, bbox_inches="tight", facecolor="white")
+        plt.close()
+        print(f"🖼️ Clustermap PRO guardado en {out_path}")
+    else:
+        print("⚠️ No se puede graficar clustermap: la matriz tiene NaN, infinitos o menos de dos activos válidos.")
 
 def plot_clustered_heatmap_sin_dendrograma(
     matriz,
@@ -187,5 +195,7 @@ def plot_rolling_correlation_lines(
     plt.savefig(out_path, dpi=300)
     plt.close()
     print(f"🖼️ Gráfico de líneas de correlaciones rolling guardado en {out_path}")
+
+
 
 

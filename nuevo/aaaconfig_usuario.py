@@ -4,11 +4,21 @@
 
 # Primera etapa
 
-descargar = False
-limpiar = False 
+descargar = False 
+limpiar = False   
 analizar = False 
+generar_comparativo = False
+GENERAR_PDF = False
+analizar_tasas_libres = False 
 
-hacer_seleccion_activos = True  # Activa la lógica para seleccionar cartera desde todos los activos
+# ^IRX: Treasury 13 Week Bill Yield      (≈ 3 meses, T-bill corto plazo)
+# ^FVX: Treasury 5 Year Note Yield       (5 años, T-note mediano plazo)
+# ^TNX: Treasury 10 Year Note Yield      (10 años, T-note clásico, referencia global)
+# ^TYX: Treasury 30 Year Bond Yield      (30 años, bono largo plazo)
+
+tasa_libre_riesgo_ticker = "^TNX"
+
+hacer_seleccion_activos = False  # Activa la lógica para seleccionar cartera desde todos los activos
 nivel_volatilidad_cliente = 0.25  # Máxima volatilidad tolerada
 sectores_cliente = []  # O dejarlo en [] para todos    "Technology", "Healthcare", "Energy"
 max_activos_por_sector = 3
@@ -16,8 +26,11 @@ max_activos_por_sector = 3
 # Segunda etapa
 
 
-GENERAR_PDF = False
-generar_comparativo = False
+
+
+
+cartera_para_correlacion = "Moderado"  #"todos", "Conservador", "Mixta", "Agresivo", 
+
 generar_correlaciones = False
 generar_clustermap = False
 mostrar_dendrograma = False
@@ -42,6 +55,8 @@ USAR_BENCHMARK = False
 BENCHMARK_TICKER = "SPY"
 BENCHMARK_COMO_ACTIVO = False
 
+simular_cartera_de_los_activos_seleccionados = False
+
 
 hacer_backtest = False
 GENERAR_PDF_BACKTEST = False
@@ -49,7 +64,7 @@ hacer_backtest_iguales = False
 GENERAR_PDF_BACKTEST = False
 hacer_backtest_real = False
 carpeta_clientes = "datosgenerales/Clientes"
-dni_filtrar = 32630214
+dni_filtrar = None 
 GENERAR_PDF_BACKTEST = False
 
 # ---- Parámetros generales ----
@@ -94,7 +109,7 @@ tickers = ['MMM', 'ABT', 'ABBV', 'ANF', 'ACN',
            'UL', 'UNP', 'UAL', 'X', 'UNH', 'UPST', 'URBN', 'VALE', 'VALE3', 
            'VIG', 'VRSN', 'VZ', 'VRTX', 'SPCE', 'V', 'VIST', 'VST', 'VOD', 
            'WBA', 'WMT', 'WEGE3', 'WBO', 'WFC', 'XROX', 'XP', 'New', 'AUY', 
-           'YZCA', 'YELP', 'ZM']
+           'YZCA', 'YELP', 'ZM', "^IRX", '^FVX', '^TNX', '^TYX']
 
 # tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "META",
 #             "JPM", "BAC", "WFC", "GS", "MS",
@@ -107,7 +122,7 @@ tickers = ['MMM', 'ABT', 'ABBV', 'ANF', 'ACN',
 #             "BA", "LMT", "RTX", "GE", "NOC",
 #             "DUK", "NEE", "SO", "D", "AEP", "SPY"]
 start_date = "2000-01-01"
-end_date = "2025-06-27"
+end_date = "2025-07-01"
 proveedor = "yahoo"  # 'alphavantage', 'tiingo', 'yahoo'
 
 tema_grafico = "bloomberg_dark"
