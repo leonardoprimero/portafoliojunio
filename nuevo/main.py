@@ -127,7 +127,7 @@ acciones = [
     ("Análisis PCA", generar_pca),
     ("PDF correlaciones", generar_pdf_correlaciones),
     ("Simulación cartera Monte Carlo", simular_cartera),
-    ("simular_cartera_de_los_activos_seleccionados", activos_seleccionados),
+  #  ("simular_cartera_de_los_activos_seleccionados", activos_seleccionados),
     ("Backtesting portafolio óptimo", hacer_backtest),
     ("Backtesting portafolio igual ponderado", hacer_backtest_iguales),
     
