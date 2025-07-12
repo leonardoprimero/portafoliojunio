@@ -6,7 +6,7 @@
 
 descargar = False 
 limpiar = False   
-analizar = True 
+analizar = False 
 generar_comparativo = False
 GENERAR_PDF = False
 analizar_tasas_libres = False 
