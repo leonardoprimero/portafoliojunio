@@ -182,6 +182,8 @@ app.post("/send", async (req, res) => {
 // Endpoint para verificar si un número tiene una cuenta de WhatsApp válida.
 app.post('/check-number', async (req, res) => {
     const { phone } = req.body;
+    console.log(`📩 Número recibido para verificación: ${phone}`);
+
     if (!phone) {
         return res.status(400).json({ success: false, error: 'Falta el número de teléfono.' });
     }
@@ -225,6 +227,80 @@ app.get('/historial/:phone', async (req, res) => {
         res.status(500).json({ error: 'Error consultando Firebase' });
     }
 });
+// === ENDPOINT PARA TRAER EL DOCUMENTO ENTERO DEL CLIENTE POR EMAIL ===
+app.get('/cliente-por-email/:email', async (req, res) => {
+    const { email } = req.params;
+    if (!email) {
+        return res.status(400).json({ error: 'Falta el email' });
+    }
+
+    try {
+        // Hacemos una consulta a la colección 'clientes' para buscar por el campo 'email'
+        const clientesRef = db.collection('clientes');
+        const snapshot = await clientesRef.where('email', '==', email).limit(1).get();
+
+        if (snapshot.empty) {
+            // Si no se encuentra ningún cliente con ese email
+            return res.status(404).json({ error: 'Cliente no encontrado con ese email' });
+        }
+
+        // Si se encuentra, tomamos el primer resultado
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+
+        // Devolvemos todos los datos del cliente encontrado
+        return res.json({
+            name: data.name || "",
+            empresa: data.empresa || "",
+            email: data.email || email,
+            phone: data.phone || "", // Puede que no tenga teléfono si se registró por email
+            historial: data.historial || [],
+            creado: data.creado || null
+        });
+
+    } catch (error) {
+        console.error('❌ Error buscando cliente por email:', error.message);
+        res.status(500).json({ error: 'Error consultando Firebase' });
+    }
+});
+
+// Endpoint para sumar mensaje al historial por email (solo email y mensaje, emisor se setea "cliente")
+app.post('/add-mensaje-por-email', async (req, res) => {
+    const { email, mensaje, emisor } = req.body;
+    if (!email) {
+        return res.status(400).json({ error: 'Falta email' });
+    }
+    try {
+        const clientesRef = db.collection('clientes');
+        const snap = await clientesRef.where('email', '==', email).limit(1).get();
+        const entradaHistorial = {
+            fecha: new Date().toISOString(),
+            mensaje: mensaje || "", // Puede venir vacío
+            emisor: emisor ||"cliente"
+        };
+        if (snap.empty) {
+            // Si no existe el cliente, lo crea solo con email e historial
+            await clientesRef.add({
+                email,
+                creado: admin.firestore.FieldValue.serverTimestamp(),
+                historial: [entradaHistorial]
+            });
+            return res.json({ success: true, created: true });
+        } else {
+            // Si existe, suma el mensaje al historial
+            const docRef = snap.docs[0].ref;
+            await docRef.update({
+                historial: admin.firestore.FieldValue.arrayUnion(entradaHistorial)
+            });
+            return res.json({ success: true, updated: true });
+        }
+    } catch (err) {
+        console.error("❌ Error en /add-mensaje-por-email:", err.message);
+        res.status(500).json({ error: 'Error consultando Firebase' });
+    }
+});
+
+
 
 
 const PORT = process.env.PORT || 3030;
